@@ -1,0 +1,26 @@
+# Rust
+target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# StaticHub specific
+/var/statichub/
+*.db
+*.db-shm
+*.db-wal
+.statichub/
+
+# Test artifacts
+/test-deploys/

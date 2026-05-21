@@ -1,0 +1,35 @@
+[package]
+name = "statichub"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "statichub"
+path = "src/main.rs"
+
+[dependencies]
+# Workspace dependencies
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+tokio.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+
+# CLI specific
+clap = { version = "4", features = ["derive"] }
+reqwest = { version = "0.11", features = ["json", "stream"] }
+flate2 = "1"
+tar = "0.4"
+indicatif = "0.17"
+colored = "2"
+dirs = "5"
+
+# Shared crate
+statichub-shared = { path = "../shared" }
+
+[dev-dependencies]
+mockito = "1"
+tempfile = "3"

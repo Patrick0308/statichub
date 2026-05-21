@@ -1,0 +1,51 @@
+[package]
+name = "statichub-server"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "statichub-server"
+path = "src/main.rs"
+
+[dependencies]
+# Workspace dependencies
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+tokio.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+
+# Web framework
+axum = "0.7"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors", "compression-br", "fs", "trace"] }
+
+# Database
+sqlx = { version = "0.7", features = ["sqlite", "runtime-tokio-rustls", "migrate"] }
+
+# Auth
+oauth2 = "4"
+jsonwebtoken = "9"
+bcrypt = "0.15"
+
+# HTTP utilities
+mime_guess = "2"
+reqwest = "0.11"
+
+# Utilities
+uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+regex = "1"
+async-trait = "0.1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Shared crate
+statichub-shared = { path = "../shared" }
+
+[dev-dependencies]
+wiremock = "0.6"
+tempfile = "3"
