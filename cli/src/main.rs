@@ -31,6 +31,23 @@ enum Commands {
 
     /// Logout and clear credentials
     Logout,
+
+    /// List your projects
+    List,
+
+    /// Show project details and deploy history
+    Info {
+        /// Project name
+        project: String,
+    },
+
+    /// Rollback project to a previous version
+    Rollback {
+        /// Project name
+        project: String,
+        /// Version to rollback to
+        version: i64,
+    },
 }
 
 #[tokio::main]
@@ -142,6 +159,81 @@ async fn main() -> anyhow::Result<()> {
                     println!("ℹ️  Not logged in");
                 }
             }
+        }
+        Commands::List => {
+            let credentials = auth::load_credentials()?
+                .ok_or_else(|| anyhow::anyhow!("Not logged in. Run 'statichub login' first."))?;
+
+            let server_url = std::env::var("STATICHUB_SERVER")
+                .unwrap_or_else(|_| "http://localhost:3000".to_string());
+
+            let client = client::Client::new(server_url);
+            let projects = client.list_projects(&credentials.access_token).await?;
+
+            if projects.is_empty() {
+                println!("📭 No projects yet");
+                println!("   Deploy with a name: statichub deploy --name my-app");
+            } else {
+                println!("📋 Your projects:\n");
+                for project in projects {
+                    println!("  {} - {}", project.name, project.url);
+                    if let Some(version) = project.current_version {
+                        println!("    Version: {}", version);
+                    }
+                    if let Some(deployed_at) = project.last_deployed_at {
+                        println!("    Last deployed: {}", deployed_at);
+                    }
+                    println!();
+                }
+            }
+        }
+        Commands::Info { project } => {
+            let credentials = auth::load_credentials()?
+                .ok_or_else(|| anyhow::anyhow!("Not logged in. Run 'statichub login' first."))?;
+
+            let server_url = std::env::var("STATICHUB_SERVER")
+                .unwrap_or_else(|_| "http://localhost:3000".to_string());
+
+            let client = client::Client::new(server_url);
+            let info = client.get_project_info(&project, &credentials.access_token).await?;
+
+            println!("📦 Project: {}", info.name);
+            println!("   URL: {}", info.url);
+            println!("   Created: {}", info.created_at);
+            if let Some(version) = info.current_version {
+                println!("   Current version: {}", version);
+            }
+            println!("\n📜 Deploy history:");
+
+            for deploy in info.deploys {
+                let current_marker = if deploy.is_current { " (current)" } else { "" };
+                println!(
+                    "  v{} - {} files, {} bytes, {}{}",
+                    deploy.version,
+                    deploy.file_count,
+                    deploy.total_size_bytes,
+                    deploy.deployed_at,
+                    current_marker
+                );
+            }
+        }
+        Commands::Rollback { project, version } => {
+            let credentials = auth::load_credentials()?
+                .ok_or_else(|| anyhow::anyhow!("Not logged in. Run 'statichub login' first."))?;
+
+            let server_url = std::env::var("STATICHUB_SERVER")
+                .unwrap_or_else(|_| "http://localhost:3000".to_string());
+
+            println!("🔄 Rolling back {} to version {}...", project, version);
+
+            let client = client::Client::new(server_url);
+            let info = client
+                .rollback_project(&project, version, &credentials.access_token)
+                .await?;
+
+            println!("✅ Rollback successful!");
+            println!("   {} is now at version {}", info.name, info.current_version.unwrap_or(0));
+            println!("   URL: {}", info.url);
         }
     }
 

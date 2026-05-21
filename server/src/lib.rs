@@ -26,6 +26,9 @@ pub fn create_router(
     // Authenticated routes with JWT middleware
     let authenticated_routes = Router::new()
         .route("/api/projects/:name/deploys", post(api::create_project_deploy))
+        .route("/api/projects", get(api::list_projects))
+        .route("/api/projects/:name", get(api::get_project_info))
+        .route("/api/projects/:name/rollback", post(api::rollback_project))
         .layer(axum_middleware::from_fn_with_state(
             auth_state.clone(),
             middleware::auth_middleware,

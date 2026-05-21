@@ -98,13 +98,11 @@ impl Deploy {
     pub async fn list_by_project(
         pool: &SqlitePool,
         project_id: i64,
-        limit: i64,
     ) -> Result<Vec<Deploy>, sqlx::Error> {
         let deploys = sqlx::query_as::<_, Deploy>(
-            "SELECT * FROM deploys WHERE project_id = ? ORDER BY version DESC LIMIT ?"
+            "SELECT * FROM deploys WHERE project_id = ? ORDER BY version DESC"
         )
         .bind(project_id)
-        .bind(limit)
         .fetch_all(pool)
         .await?;
 
@@ -224,7 +222,7 @@ mod tests {
 
         assert_eq!(deleted.len(), 2);
 
-        let remaining = Deploy::list_by_project(&pool, project.id, 10)
+        let remaining = Deploy::list_by_project(&pool, project.id)
             .await.unwrap();
         assert_eq!(remaining.len(), 3);
     }
