@@ -3,6 +3,7 @@ mod auth;
 mod upload;
 mod client;
 
+use anyhow::Context;
 use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
@@ -42,10 +43,12 @@ async fn main() -> anyhow::Result<()> {
                 anyhow::bail!("Named projects require login. Use 'statichub login' first.");
             }
 
-            let dir = directory
-                .as_ref()
-                .map(|d| std::path::PathBuf::from(d))
-                .unwrap_or_else(|| std::env::current_dir().unwrap());
+            let dir = if let Some(d) = directory.as_ref() {
+                std::path::PathBuf::from(d)
+            } else {
+                std::env::current_dir()
+                    .context("Failed to get current directory")?
+            };
 
             println!("📦 Collecting files from {}...", dir.display());
             let files = upload::collect_files(&dir)?;

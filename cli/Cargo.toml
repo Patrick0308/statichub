@@ -32,5 +32,4 @@ dirs = "5"
 statichub-shared = { path = "../shared" }
 
 [dev-dependencies]
-mockito = "1"
 tempfile = "3"
