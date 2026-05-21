@@ -5,7 +5,7 @@ use axum::{
 use sqlx::SqlitePool;
 use std::sync::Arc;
 use statichub_shared::DeployResponse;
-use crate::{error::Result, storage::Storage, models::{Project, Deploy}};
+use crate::{error::{Result, AppError}, storage::Storage, models::{Project, Deploy}};
 
 pub struct DeployState {
     pub pool: SqlitePool,
@@ -30,15 +30,19 @@ pub async fn create_anonymous_deploy(
     let mut file_count = 0;
     let mut total_size = 0u64;
 
-    while let Some(field) = multipart.next_field().await.unwrap() {
-        let name = field.file_name().unwrap_or("file").to_string();
-        let data = field.bytes().await.unwrap();
+    // Process files with proper error handling and atomicity
+    let upload_result = process_multipart_files(
+        &mut multipart,
+        &state.storage,
+        &storage_path,
+        &mut file_count,
+        &mut total_size,
+    ).await;
 
-        total_size += data.len() as u64;
-        file_count += 1;
-
-        state.storage.store_file(&storage_path, &name, &data).await
-            .map_err(|e| crate::error::AppError::Storage(e.to_string()))?;
+    // If storage fails, mark deploy as failed before returning error
+    if let Err(e) = upload_result {
+        let _ = Deploy::update_status(&state.pool, deploy.id, "failed", 0, 0).await;
+        return Err(e);
     }
 
     // Update deploy status
@@ -54,9 +58,89 @@ pub async fn create_anonymous_deploy(
     Ok(Json(DeployResponse {
         url: format!("https://{}.statichub.io", subdomain),
         subdomain: format!("{}.statichub.io", subdomain),
-        version: None,
+        version: Some(deploy.version),
         deploy_id: deploy.id.to_string(),
     }))
+}
+
+async fn process_multipart_files(
+    multipart: &mut Multipart,
+    storage: &Arc<dyn Storage>,
+    storage_path: &str,
+    file_count: &mut i64,
+    total_size: &mut u64,
+) -> Result<()> {
+    const MAX_FILE_SIZE: u64 = 100 * 1024 * 1024; // 100MB per file
+    const MAX_TOTAL_SIZE: u64 = 500 * 1024 * 1024; // 500MB total
+    const MAX_FILE_COUNT: i64 = 1000; // Max 1000 files
+
+    while let Some(field) = multipart.next_field().await
+        .map_err(|e| AppError::BadRequest(format!("Invalid multipart data: {}", e)))? {
+
+        // Get and validate filename
+        let filename = field.file_name()
+            .ok_or_else(|| AppError::BadRequest("Missing filename".to_string()))?
+            .to_string();
+
+        let sanitized_filename = sanitize_filename(&filename)?;
+
+        // Read file data with error handling
+        let data = field.bytes().await
+            .map_err(|e| AppError::BadRequest(format!("Failed to read file data: {}", e)))?;
+
+        // Check file size limits
+        if data.len() as u64 > MAX_FILE_SIZE {
+            return Err(AppError::BadRequest(format!(
+                "File '{}' exceeds maximum size of 100MB",
+                sanitized_filename
+            )));
+        }
+
+        *total_size += data.len() as u64;
+        if *total_size > MAX_TOTAL_SIZE {
+            return Err(AppError::BadRequest(
+                "Total upload size exceeds maximum of 500MB".to_string()
+            ));
+        }
+
+        *file_count += 1;
+        if *file_count > MAX_FILE_COUNT {
+            return Err(AppError::BadRequest(
+                "Too many files (maximum 1000)".to_string()
+            ));
+        }
+
+        // Store the file
+        storage.store_file(storage_path, &sanitized_filename, &data).await
+            .map_err(|e| AppError::Storage(e.to_string()))?;
+    }
+
+    Ok(())
+}
+
+fn sanitize_filename(filename: &str) -> Result<String> {
+    // Reject paths with directory traversal attempts
+    if filename.contains("..") || filename.contains('/') || filename.contains('\\') {
+        return Err(AppError::BadRequest(format!(
+            "Invalid filename: '{}' contains forbidden characters",
+            filename
+        )));
+    }
+
+    // Reject empty filenames
+    if filename.trim().is_empty() {
+        return Err(AppError::BadRequest("Filename cannot be empty".to_string()));
+    }
+
+    // Additional safety: reject filenames starting with dot (hidden files)
+    if filename.starts_with('.') {
+        return Err(AppError::BadRequest(format!(
+            "Invalid filename: '{}' cannot start with a dot",
+            filename
+        )));
+    }
+
+    Ok(filename.to_string())
 }
 
 fn generate_random_subdomain() -> String {
