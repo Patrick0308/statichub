@@ -22,7 +22,7 @@ async fn main() -> anyhow::Result<()> {
     let database_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "sqlite:statichub.db".to_string());
 
-    let pool = db::create_pool(&database_url).await?;
+    let _pool = db::create_pool(&database_url).await?;
 
     tracing::info!("Database connected and migrations run");
 
@@ -30,7 +30,7 @@ async fn main() -> anyhow::Result<()> {
     let storage_path = std::env::var("STORAGE_PATH")
         .unwrap_or_else(|_| "./var/statichub/deploys".to_string());
 
-    let storage = storage::FilesystemStorage::new(storage_path.into());
+    let _storage = storage::FilesystemStorage::new(storage_path.into());
 
     // Build router
     let app = Router::new()

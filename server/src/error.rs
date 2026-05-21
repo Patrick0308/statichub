@@ -40,6 +40,7 @@ impl IntoResponse for AppError {
                 (StatusCode::INTERNAL_SERVER_ERROR, "database_error", e.to_string())
             }
             AppError::Storage(e) => {
+                tracing::error!("Storage error: {}", e);
                 (StatusCode::INTERNAL_SERVER_ERROR, "storage_error", e)
             }
             AppError::NotFound(msg) => {
