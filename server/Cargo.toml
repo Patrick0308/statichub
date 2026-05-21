@@ -5,6 +5,10 @@ edition.workspace = true
 authors.workspace = true
 license.workspace = true
 
+[lib]
+name = "statichub_server"
+path = "src/lib.rs"
+
 [[bin]]
 name = "statichub-server"
 path = "src/main.rs"
