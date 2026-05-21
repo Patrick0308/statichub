@@ -10,6 +10,7 @@ use crate::{error::{Result, AppError}, storage::Storage, models::{Project, Deplo
 pub struct DeployState {
     pub pool: SqlitePool,
     pub storage: Arc<dyn Storage>,
+    pub base_url: String,
 }
 
 pub async fn create_anonymous_deploy(

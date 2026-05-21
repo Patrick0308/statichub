@@ -1,10 +1,4 @@
-mod db;
-mod models;
-mod storage;
-mod error;
-mod api;
-
-use axum::{Router, routing::{get, post}};
+use statichub_server::{db, storage, api, create_router};
 use std::{net::SocketAddr, sync::Arc};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -34,16 +28,14 @@ async fn main() -> anyhow::Result<()> {
     let storage = Arc::new(storage::FilesystemStorage::new(storage_path.into())) as Arc<dyn storage::Storage>;
 
     // Shared state
-    let deploy_state = Arc::new(api::DeployState {
+    let state = Arc::new(api::DeployState {
         pool: pool.clone(),
         storage: storage.clone(),
+        base_url: "http://localhost:3000".to_string(),
     });
 
     // Build router
-    let app = Router::new()
-        .route("/health", get(health_check))
-        .route("/api/deploys/anonymous", post(api::create_anonymous_deploy))
-        .with_state(deploy_state);
+    let app = create_router(state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     tracing::info!("Server listening on {}", addr);
@@ -52,8 +44,4 @@ async fn main() -> anyhow::Result<()> {
     axum::serve(listener, app).await?;
 
     Ok(())
-}
-
-async fn health_check() -> &'static str {
-    "OK"
 }

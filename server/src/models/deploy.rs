@@ -82,6 +82,16 @@ impl Deploy {
         Ok(deploys)
     }
 
+    pub async fn find_by_id(
+        pool: &SqlitePool,
+        id: i64,
+    ) -> Result<Option<Deploy>, sqlx::Error> {
+        sqlx::query_as::<_, Deploy>("SELECT * FROM deploys WHERE id = ?")
+            .bind(id)
+            .fetch_optional(pool)
+            .await
+    }
+
     pub async fn find_by_version(
         pool: &SqlitePool,
         project_id: i64,

@@ -24,7 +24,7 @@ thiserror.workspace = true
 
 # Web framework
 axum = { version = "0.7", features = ["multipart"] }
-tower = "0.4"
+tower = { version = "0.4", features = ["util"] }
 tower-http = { version = "0.5", features = ["cors", "compression-br", "fs", "trace"] }
 
 # Database
