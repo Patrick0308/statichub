@@ -1,5 +1,6 @@
 mod config;
 mod auth;
+mod upload;
 
 use clap::{Parser, Subcommand};
 
