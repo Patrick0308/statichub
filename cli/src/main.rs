@@ -1,6 +1,7 @@
 mod config;
 mod auth;
 mod upload;
+mod client;
 
 use clap::{Parser, Subcommand};
 
@@ -37,9 +38,29 @@ async fn main() -> anyhow::Result<()> {
 
     match cli.command {
         Commands::Deploy { directory, name } => {
-            println!("Deploy command - not yet implemented");
-            println!("  Directory: {:?}", directory);
-            println!("  Name: {:?}", name);
+            if name.is_some() {
+                anyhow::bail!("Named projects require login. Use 'statichub login' first.");
+            }
+
+            let dir = directory
+                .as_ref()
+                .map(|d| std::path::PathBuf::from(d))
+                .unwrap_or_else(|| std::env::current_dir().unwrap());
+
+            println!("📦 Collecting files from {}...", dir.display());
+            let files = upload::collect_files(&dir)?;
+            println!("   Found {} files", files.len());
+
+            let server_url = std::env::var("STATICHUB_SERVER")
+                .unwrap_or_else(|_| "http://localhost:3000".to_string());
+
+            println!("🚀 Deploying to {}...", server_url);
+            let client = client::Client::new(server_url);
+            let response = client.deploy_anonymous(&files).await?;
+
+            println!("✅ Deploy successful!");
+            println!("   URL: {}", response.url);
+            println!("   Subdomain: {}", response.subdomain);
         }
         Commands::Login => {
             println!("Login command - not yet implemented");
