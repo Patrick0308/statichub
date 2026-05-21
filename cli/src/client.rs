@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use reqwest::multipart::{Form, Part};
 use statichub_shared::DeployResponse;
+use crate::auth::{LoginRequest, LoginResponse, StatusResponse};
 
 pub struct Client {
     base_url: String,
@@ -45,6 +46,51 @@ impl Client {
             .context("Failed to parse deploy response")?;
 
         Ok(deploy_response)
+    }
+
+    pub async fn initiate_login(&self, session_id: &str) -> Result<LoginResponse> {
+        let url = format!("{}/auth/login/google", self.base_url);
+
+        let response = self.client
+            .post(&url)
+            .json(&LoginRequest {
+                session_id: session_id.to_string(),
+            })
+            .send()
+            .await
+            .context("Failed to initiate login")?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            anyhow::bail!("Login initiation failed with status {}: {}", status, body);
+        }
+
+        response
+            .json()
+            .await
+            .context("Failed to parse login response")
+    }
+
+    pub async fn poll_auth_status(&self, session_id: &str) -> Result<StatusResponse> {
+        let url = format!("{}/auth/status/{}", self.base_url, session_id);
+
+        let response = self.client
+            .get(&url)
+            .send()
+            .await
+            .context("Failed to poll auth status")?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            anyhow::bail!("Auth status check failed with status {}: {}", status, body);
+        }
+
+        response
+            .json()
+            .await
+            .context("Failed to parse status response")
     }
 }
 

@@ -66,11 +66,70 @@ async fn main() -> anyhow::Result<()> {
             println!("   Subdomain: {}", response.subdomain);
         }
         Commands::Login => {
-            println!("Login command - not yet implemented");
+            let server_url = std::env::var("STATICHUB_SERVER")
+                .unwrap_or_else(|_| "http://localhost:3000".to_string());
+
+            println!("🔐 Logging in to StaticHub...");
+
+            // Generate session ID
+            let session_id = auth::generate_session_id();
+
+            // Initiate login
+            let client = client::Client::new(server_url.clone());
+            let login_response = client.initiate_login(&session_id).await?;
+
+            // Open browser
+            println!("📱 Opening browser for authentication...");
+            println!("   If the browser doesn't open, visit: {}", login_response.auth_url);
+
+            if let Err(e) = open::that(&login_response.auth_url) {
+                println!("   ⚠️  Could not open browser automatically: {}", e);
+                println!("   Please open the URL manually in your browser.");
+            }
+
+            // Poll for token
+            println!("⏳ Waiting for authentication...");
+            let mut attempts = 0;
+            let max_attempts = 60; // 5 minutes (60 * 5 seconds)
+
+            let token = loop {
+                tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+                attempts += 1;
+
+                let status = client.poll_auth_status(&session_id).await?;
+
+                if let Some(token) = status.token {
+                    break token;
+                }
+
+                if attempts >= max_attempts {
+                    anyhow::bail!("Authentication timed out. Please try again.");
+                }
+
+                // Show progress every 30 seconds (every 6 attempts)
+                if attempts % 6 == 0 {
+                    let elapsed_seconds = attempts * 5;
+                    println!("   Still waiting... ({}s elapsed)", elapsed_seconds);
+                }
+            };
+
+            // Save credentials
+            auth::save_credentials(&token)?;
+
+            println!("✅ Login successful!");
+            println!("   Credentials saved to ~/.statichub/credentials.json");
         }
         Commands::Logout => {
-            auth::clear_credentials()?;
-            println!("✓ Logged out successfully");
+            match auth::load_credentials()? {
+                Some(_) => {
+                    auth::clear_credentials()?;
+                    println!("✅ Logged out successfully");
+                    println!("   Credentials removed from ~/.statichub/credentials.json");
+                }
+                None => {
+                    println!("ℹ️  Not logged in");
+                }
+            }
         }
     }
 

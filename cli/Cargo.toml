@@ -27,6 +27,8 @@ indicatif = "0.17"
 walkdir = "2"
 colored = "2"
 dirs = "5"
+uuid = { version = "1", features = ["v4"] }
+open = "5"
 
 # Shared crate
 statichub-shared = { path = "../shared" }
