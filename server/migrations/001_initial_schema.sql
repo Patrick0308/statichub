@@ -45,21 +45,6 @@ CREATE TABLE deploys (
 
 CREATE INDEX idx_deploys_project ON deploys(project_id);
 
--- Custom domains table
-CREATE TABLE custom_domains (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    project_id INTEGER NOT NULL,
-    domain TEXT NOT NULL UNIQUE,
-    verified BOOLEAN NOT NULL DEFAULT 0,
-    verification_token TEXT NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    verified_at TIMESTAMP,
-    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
-);
-
-CREATE INDEX idx_domains_project ON custom_domains(project_id);
-CREATE INDEX idx_domains_domain ON custom_domains(domain);
-
 -- Deploy tokens table
 CREATE TABLE deploy_tokens (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
