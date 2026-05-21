@@ -6,7 +6,7 @@ use crate::{
 };
 use axum::{
     extract::{Host, Request, State},
-    http::{HeaderMap, HeaderValue, StatusCode},
+    http::{header, HeaderMap, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
 };
 use std::sync::Arc;
@@ -37,8 +37,31 @@ pub async fn serve_static_file(
         .await?
         .ok_or_else(|| AppError::NotFound(format!("Deploy not found: {}", deploy_id)))?;
 
-    // Resolve file path
     let request_path = request.uri().path();
+
+    // Check for redirects BEFORE resolving files
+    if let Some(redirects) = &config.redirects {
+        for redirect in redirects {
+            // Match exact path or path prefix
+            if request_path == redirect.from
+                || request_path.starts_with(&format!("{}/", redirect.from)) {
+                let mut headers = HeaderMap::new();
+                headers.insert(
+                    header::LOCATION,
+                    HeaderValue::from_str(&redirect.to)
+                        .map_err(|_| AppError::BadRequest("Invalid redirect URL".to_string()))?,
+                );
+                return Ok((
+                    StatusCode::from_u16(redirect.status)
+                        .map_err(|_| AppError::BadRequest("Invalid redirect status code".to_string()))?,
+                    headers,
+                )
+                    .into_response());
+            }
+        }
+    }
+
+    // Resolve file path
     let file_path = resolve_file_path(request_path, &config, &state.storage, &deploy.storage_path).await?;
 
     // Get file content
@@ -60,7 +83,11 @@ pub async fn serve_static_file(
 
     // Build response with custom headers
     let mut headers = HeaderMap::new();
-    headers.insert("content-type", HeaderValue::from_str(&content_type).unwrap());
+    headers.insert(
+        "content-type",
+        HeaderValue::from_str(&content_type)
+            .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream"))
+    );
 
     // Apply custom headers from config
     if let Some(custom_headers) = &config.headers {
@@ -68,10 +95,11 @@ pub async fn serve_static_file(
             if request_path.starts_with(pattern) {
                 for (key, value) in header_map {
                     if let Ok(header_value) = HeaderValue::from_str(value) {
-                        headers.insert(
-                            key.parse::<axum::http::HeaderName>().unwrap(),
-                            header_value,
-                        );
+                        if let Ok(header_name) = key.parse::<axum::http::HeaderName>() {
+                            headers.insert(header_name, header_value);
+                        } else {
+                            tracing::warn!("Invalid custom header name: {}", key);
+                        }
                     }
                 }
             }

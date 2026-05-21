@@ -160,9 +160,6 @@ fn generate_random_subdomain() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::create_pool;
-    use crate::storage::FilesystemStorage;
-    use tempfile::TempDir;
 
     #[tokio::test]
     async fn test_generate_random_subdomain() {
