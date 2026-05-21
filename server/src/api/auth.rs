@@ -96,7 +96,7 @@ impl AuthState {
         })
     }
 
-    fn generate_jwt(&self, user_id: i64, email: &str) -> Result<String> {
+    pub fn generate_jwt(&self, user_id: i64, email: &str) -> Result<String> {
         let expiry = chrono::Utc::now()
             .checked_add_signed(chrono::Duration::days(7))
             .ok_or_else(|| AppError::Internal("Failed to calculate JWT expiry".to_string()))?

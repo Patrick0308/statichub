@@ -60,7 +60,8 @@ pub async fn create_anonymous_deploy(
         url: format!("https://{}.statichub.io", subdomain),
         subdomain: format!("{}.statichub.io", subdomain),
         version: Some(deploy.version),
-        deploy_id: deploy.id.to_string(),
+        deploy_id: deploy.id,
+        project_id: Some(project.id),
     }))
 }
 

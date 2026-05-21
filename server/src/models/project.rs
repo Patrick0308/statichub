@@ -1,4 +1,4 @@
-use sqlx::SqlitePool;
+use sqlx::{SqlitePool, Transaction, Sqlite};
 use statichub_shared::ProjectConfig;
 
 #[derive(Debug, Clone, sqlx::FromRow)]
@@ -60,6 +60,32 @@ impl Project {
         Ok(project)
     }
 
+    pub async fn create_owned_tx(
+        tx: &mut Transaction<'_, Sqlite>,
+        owner_id: i64,
+        name: &str,
+        config: Option<&ProjectConfig>,
+    ) -> Result<Project, sqlx::Error> {
+        let subdomain = format!("{}.statichub.io", name);
+        let config_json = config.map(|c| serde_json::to_string(c).ok()).flatten();
+
+        let project = sqlx::query_as::<_, Project>(
+            r#"
+            INSERT INTO projects (owner_id, name, subdomain, is_anonymous, config)
+            VALUES (?, ?, ?, 0, ?)
+            RETURNING *
+            "#,
+        )
+        .bind(owner_id)
+        .bind(name)
+        .bind(&subdomain)
+        .bind(config_json)
+        .fetch_one(&mut **tx)
+        .await?;
+
+        Ok(project)
+    }
+
     pub async fn find_by_name(
         pool: &SqlitePool,
         name: &str,
@@ -69,6 +95,20 @@ impl Project {
         )
         .bind(name)
         .fetch_optional(pool)
+        .await?;
+
+        Ok(project)
+    }
+
+    pub async fn find_by_name_tx(
+        tx: &mut Transaction<'_, Sqlite>,
+        name: &str,
+    ) -> Result<Option<Project>, sqlx::Error> {
+        let project = sqlx::query_as::<_, Project>(
+            "SELECT * FROM projects WHERE name = ?"
+        )
+        .bind(name)
+        .fetch_optional(&mut **tx)
         .await?;
 
         Ok(project)

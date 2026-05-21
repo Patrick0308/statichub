@@ -33,7 +33,8 @@ pub struct DeployResponse {
     pub url: String,
     pub subdomain: String,
     pub version: Option<i64>,
-    pub deploy_id: String,
+    pub deploy_id: i64,
+    pub project_id: Option<i64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

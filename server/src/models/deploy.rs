@@ -1,4 +1,4 @@
-use sqlx::SqlitePool;
+use sqlx::{SqlitePool, Transaction, Sqlite};
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct Deploy {
@@ -37,6 +37,35 @@ impl Deploy {
         .bind(next_version)
         .bind(storage_path)
         .fetch_one(pool)
+        .await?;
+
+        Ok(deploy)
+    }
+
+    pub async fn create_tx(
+        tx: &mut Transaction<'_, Sqlite>,
+        project_id: i64,
+        storage_path: &str,
+    ) -> Result<Deploy, sqlx::Error> {
+        // Get next version number
+        let next_version: i64 = sqlx::query_scalar(
+            "SELECT COALESCE(MAX(version), 0) + 1 FROM deploys WHERE project_id = ?"
+        )
+        .bind(project_id)
+        .fetch_one(&mut **tx)
+        .await?;
+
+        let deploy = sqlx::query_as::<_, Deploy>(
+            r#"
+            INSERT INTO deploys (project_id, version, storage_path, status)
+            VALUES (?, ?, ?, 'uploading')
+            RETURNING *
+            "#,
+        )
+        .bind(project_id)
+        .bind(next_version)
+        .bind(storage_path)
+        .fetch_one(&mut **tx)
         .await?;
 
         Ok(deploy)

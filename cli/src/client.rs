@@ -48,6 +48,44 @@ impl Client {
         Ok(deploy_response)
     }
 
+    pub async fn deploy_authenticated(
+        &self,
+        project_name: &str,
+        files: &[crate::upload::UploadFile],
+        token: &str,
+    ) -> Result<DeployResponse> {
+        let url = format!("{}/api/projects/{}/deploys", self.base_url, project_name);
+
+        let mut form = Form::new();
+
+        for file in files {
+            let part = Part::bytes(file.content.clone())
+                .file_name(file.path.clone());
+            form = form.part("files", part);
+        }
+
+        let response = self.client
+            .post(&url)
+            .header("Authorization", format!("Bearer {}", token))
+            .multipart(form)
+            .send()
+            .await
+            .context("Failed to send deploy request")?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            anyhow::bail!("Deploy failed with status {}: {}", status, body);
+        }
+
+        let deploy_response: DeployResponse = response
+            .json()
+            .await
+            .context("Failed to parse deploy response")?;
+
+        Ok(deploy_response)
+    }
+
     pub async fn initiate_login(&self, session_id: &str) -> Result<LoginResponse> {
         let url = format!("{}/auth/login/google", self.base_url);
 

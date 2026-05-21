@@ -39,10 +39,6 @@ async fn main() -> anyhow::Result<()> {
 
     match cli.command {
         Commands::Deploy { directory, name } => {
-            if name.is_some() {
-                anyhow::bail!("Named projects require login. Use 'statichub login' first.");
-            }
-
             let dir = if let Some(d) = directory.as_ref() {
                 std::path::PathBuf::from(d)
             } else {
@@ -57,13 +53,29 @@ async fn main() -> anyhow::Result<()> {
             let server_url = std::env::var("STATICHUB_SERVER")
                 .unwrap_or_else(|_| "http://localhost:3000".to_string());
 
-            println!("🚀 Deploying to {}...", server_url);
-            let client = client::Client::new(server_url);
-            let response = client.deploy_anonymous(&files).await?;
+            let client = client::Client::new(server_url.clone());
+
+            let response = if let Some(project_name) = name {
+                // Authenticated deploy
+                let credentials = auth::load_credentials()?
+                    .ok_or_else(|| anyhow::anyhow!(
+                        "Not logged in. Run 'statichub login' first to deploy named projects."
+                    ))?;
+
+                println!("🚀 Deploying to project '{}' on {}...", project_name, server_url);
+                client.deploy_authenticated(&project_name, &files, &credentials.access_token).await?
+            } else {
+                // Anonymous deploy
+                println!("🚀 Deploying to {}...", server_url);
+                client.deploy_anonymous(&files).await?
+            };
 
             println!("✅ Deploy successful!");
             println!("   URL: {}", response.url);
             println!("   Subdomain: {}", response.subdomain);
+            if let Some(version) = response.version {
+                println!("   Version: {}", version);
+            }
         }
         Commands::Login => {
             let server_url = std::env::var("STATICHUB_SERVER")
