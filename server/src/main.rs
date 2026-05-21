@@ -2,9 +2,10 @@ mod db;
 mod models;
 mod storage;
 mod error;
+mod api;
 
-use axum::{Router, routing::get};
-use std::net::SocketAddr;
+use axum::{Router, routing::{get, post}};
+use std::{net::SocketAddr, sync::Arc};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
@@ -22,7 +23,7 @@ async fn main() -> anyhow::Result<()> {
     let database_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "sqlite:statichub.db".to_string());
 
-    let _pool = db::create_pool(&database_url).await?;
+    let pool = db::create_pool(&database_url).await?;
 
     tracing::info!("Database connected and migrations run");
 
@@ -30,11 +31,19 @@ async fn main() -> anyhow::Result<()> {
     let storage_path = std::env::var("STORAGE_PATH")
         .unwrap_or_else(|_| "./var/statichub/deploys".to_string());
 
-    let _storage = storage::FilesystemStorage::new(storage_path.into());
+    let storage = Arc::new(storage::FilesystemStorage::new(storage_path.into())) as Arc<dyn storage::Storage>;
+
+    // Shared state
+    let deploy_state = Arc::new(api::DeployState {
+        pool: pool.clone(),
+        storage: storage.clone(),
+    });
 
     // Build router
     let app = Router::new()
-        .route("/health", get(health_check));
+        .route("/health", get(health_check))
+        .route("/api/deploys/anonymous", post(api::create_anonymous_deploy))
+        .with_state(deploy_state);
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     tracing::info!("Server listening on {}", addr);

@@ -23,7 +23,7 @@ anyhow.workspace = true
 thiserror.workspace = true
 
 # Web framework
-axum = "0.7"
+axum = { version = "0.7", features = ["multipart"] }
 tower = "0.4"
 tower-http = { version = "0.5", features = ["cors", "compression-br", "fs", "trace"] }
 
@@ -46,6 +46,7 @@ regex = "1"
 async-trait = "0.1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+rand = "0.8"
 
 # Shared crate
 statichub-shared = { path = "../shared" }
