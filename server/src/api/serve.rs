@@ -1,7 +1,7 @@
 use crate::{
     api::DeployState,
     error::{AppError, Result},
-    models::Project,
+    models::{Domain, Project},
     storage::Storage,
 };
 use axum::{
@@ -12,25 +12,66 @@ use axum::{
 use std::sync::Arc;
 use statichub_shared::ProjectConfig;
 
+/// Try to find a project via custom domain
+async fn try_custom_domain(
+    hostname: &str,
+    state: &Arc<DeployState>,
+) -> Result<Option<Project>> {
+    // Check if hostname is a custom domain (not a subdomain of base_url)
+    let base_domain = state.base_url
+        .trim_start_matches("http://")
+        .trim_start_matches("https://");
+
+    // If hostname ends with base domain, it's not a custom domain
+    if hostname.ends_with(base_domain) {
+        return Ok(None);
+    }
+
+    // Look up domain in database
+    let domain = match Domain::find_by_domain(&state.pool, hostname).await? {
+        Some(d) => d,
+        None => return Ok(None),
+    };
+
+    // Only serve if domain is verified
+    if domain.status != "verified" {
+        return Err(AppError::BadRequest(
+            "Domain is not verified".to_string()
+        ));
+    }
+
+    // Find project by domain's project_id
+    let project = Project::find_by_id(&state.pool, domain.project_id)
+        .await?
+        .ok_or_else(|| AppError::NotFound(
+            format!("Project not found for domain: {}", hostname)
+        ))?;
+
+    Ok(Some(project))
+}
+
 pub async fn serve_static_file(
     Host(hostname): Host,
     State(state): State<Arc<DeployState>>,
     request: Request,
 ) -> Result<Response> {
-    // Extract subdomain
-    let subdomain = extract_subdomain(&hostname, &state.base_url)?;
-
-    // Find project by subdomain
-    let project = Project::find_by_subdomain(&state.pool, &subdomain)
-        .await?
-        .ok_or_else(|| AppError::NotFound(format!("Project not found: {}", subdomain)))?;
+    // Try custom domain first
+    let project = if let Some(proj) = try_custom_domain(&hostname, &state).await? {
+        proj
+    } else {
+        // Fall back to subdomain lookup
+        let subdomain = extract_subdomain(&hostname, &state.base_url)?;
+        Project::find_by_subdomain(&state.pool, &subdomain)
+            .await?
+            .ok_or_else(|| AppError::NotFound(format!("Project not found: {}", subdomain)))?
+    };
 
     // Get project config
     let config = project.get_config().unwrap_or_default();
 
     // Get current deploy
     let deploy_id = project.current_deploy_id.ok_or_else(|| {
-        AppError::NotFound(format!("No deployment found for project: {}", subdomain))
+        AppError::NotFound(format!("No deployment found for project: {}", project.name))
     })?;
 
     let deploy = crate::models::Deploy::find_by_id(&state.pool, deploy_id)

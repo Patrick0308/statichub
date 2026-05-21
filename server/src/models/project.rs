@@ -114,6 +114,20 @@ impl Project {
         Ok(project)
     }
 
+    pub async fn find_by_id(
+        pool: &SqlitePool,
+        id: i64,
+    ) -> Result<Option<Project>, sqlx::Error> {
+        let project = sqlx::query_as::<_, Project>(
+            "SELECT * FROM projects WHERE id = ?"
+        )
+        .bind(id)
+        .fetch_optional(pool)
+        .await?;
+
+        Ok(project)
+    }
+
     pub async fn find_by_subdomain(
         pool: &SqlitePool,
         subdomain: &str,
