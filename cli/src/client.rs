@@ -30,6 +30,16 @@ pub struct DeployInfo {
     pub is_current: bool,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct DomainResponse {
+    pub domain: String,
+    pub project_name: String,
+    pub verified: bool,
+    pub dns_target: String,
+    pub created_at: String,
+    pub verified_at: Option<String>,
+}
+
 pub struct Client {
     base_url: String,
     client: reqwest::Client,
@@ -231,6 +241,118 @@ impl Client {
             .json()
             .await
             .context("Failed to parse rollback response")
+    }
+
+    pub async fn add_domain(
+        &self,
+        project: &str,
+        domain: &str,
+        token: &str,
+    ) -> Result<DomainResponse> {
+        let url = format!("{}/api/projects/{}/domains", self.base_url, project);
+
+        let response = self
+            .client
+            .post(&url)
+            .header("Authorization", format!("Bearer {}", token))
+            .json(&serde_json::json!({ "domain": domain }))
+            .send()
+            .await
+            .context("Failed to add domain")?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            anyhow::bail!("Failed to add domain: {} - {}", status, body);
+        }
+
+        response
+            .json()
+            .await
+            .context("Failed to parse domain response")
+    }
+
+    pub async fn list_domains(
+        &self,
+        project: &str,
+        token: &str,
+    ) -> Result<Vec<DomainResponse>> {
+        let url = format!("{}/api/projects/{}/domains", self.base_url, project);
+
+        let response = self
+            .client
+            .get(&url)
+            .header("Authorization", format!("Bearer {}", token))
+            .send()
+            .await
+            .context("Failed to list domains")?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            anyhow::bail!("Failed to list domains: {} - {}", status, body);
+        }
+
+        response
+            .json()
+            .await
+            .context("Failed to parse domains list")
+    }
+
+    pub async fn verify_domain(
+        &self,
+        project: &str,
+        domain: &str,
+        token: &str,
+    ) -> Result<DomainResponse> {
+        let url = format!(
+            "{}/api/projects/{}/domains/{}/verify",
+            self.base_url, project, domain
+        );
+
+        let response = self
+            .client
+            .post(&url)
+            .header("Authorization", format!("Bearer {}", token))
+            .send()
+            .await
+            .context("Failed to verify domain")?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            anyhow::bail!("Failed to verify domain: {} - {}", status, body);
+        }
+
+        response
+            .json()
+            .await
+            .context("Failed to parse domain response")
+    }
+
+    pub async fn remove_domain(
+        &self,
+        project: &str,
+        domain: &str,
+        token: &str,
+    ) -> Result<()> {
+        let url = format!("{}/api/projects/{}/domains/{}", self.base_url, project, domain);
+
+        let response = self
+            .client
+            .delete(&url)
+            .header("Authorization", format!("Bearer {}", token))
+            .send()
+            .await
+            .context("Failed to remove domain")?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            anyhow::bail!("Failed to remove domain: {} - {}", status, body);
+        }
+
+        Ok(())
     }
 }
 
