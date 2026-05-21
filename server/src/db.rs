@@ -1,11 +1,15 @@
-use sqlx::{SqlitePool, sqlite::SqlitePoolOptions};
+use sqlx::{SqlitePool, sqlite::{SqlitePoolOptions, SqliteConnectOptions}};
 use std::time::Duration;
+use std::str::FromStr;
 
 pub async fn create_pool(database_url: &str) -> Result<SqlitePool, sqlx::Error> {
+    let connect_options = SqliteConnectOptions::from_str(database_url)?
+        .foreign_keys(true);
+
     let pool = SqlitePoolOptions::new()
         .max_connections(5)
         .acquire_timeout(Duration::from_secs(3))
-        .connect(database_url)
+        .connect_with(connect_options)
         .await?;
 
     // Run migrations
