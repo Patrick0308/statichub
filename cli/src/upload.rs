@@ -60,21 +60,18 @@ fn is_excluded(path: &Path, base_dir: &Path) -> bool {
     }
 
     // Exclude common directories
+    // Note: .git, .svn, .hg are already caught by hidden-file check above
     let excluded_dirs = [
         "node_modules",
-        ".git",
-        ".svn",
-        ".hg",
         "target",
         "dist",
         "build",
     ];
 
-    for component in path.components() {
-        if let Some(name) = component.as_os_str().to_str() {
-            if excluded_dirs.contains(&name) {
-                return true;
-            }
+    // Check if the directory name itself is excluded
+    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+        if excluded_dirs.contains(&name) {
+            return true;
         }
     }
 
@@ -145,6 +142,29 @@ mod tests {
 
         let files = collect_files(temp.path()).unwrap();
 
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "index.html");
+    }
+
+    #[test]
+    fn test_exclude_named_directories() {
+        let temp = TempDir::new().unwrap();
+
+        fs::write(temp.path().join("index.html"), b"<html>").unwrap();
+
+        // Create directories that should be excluded
+        fs::create_dir(temp.path().join("node_modules")).unwrap();
+        fs::write(temp.path().join("node_modules/package.json"), b"{}").unwrap();
+
+        fs::create_dir(temp.path().join("target")).unwrap();
+        fs::write(temp.path().join("target/build.txt"), b"build").unwrap();
+
+        fs::create_dir(temp.path().join("dist")).unwrap();
+        fs::write(temp.path().join("dist/bundle.js"), b"code").unwrap();
+
+        let files = collect_files(temp.path()).unwrap();
+
+        // Should only include index.html, all excluded directories should be skipped
         assert_eq!(files.len(), 1);
         assert_eq!(files[0].path, "index.html");
     }
