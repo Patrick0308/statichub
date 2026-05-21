@@ -37,7 +37,7 @@ bcrypt = "0.15"
 
 # HTTP utilities
 mime_guess = "2"
-reqwest = "0.11"
+reqwest = { version = "0.11", features = ["json"] }
 
 # Utilities
 uuid = { version = "1", features = ["v4", "serde"] }
@@ -47,6 +47,7 @@ async-trait = "0.1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 rand = "0.8"
+dotenv = "0.15"
 
 # Shared crate
 statichub-shared = { path = "../shared" }

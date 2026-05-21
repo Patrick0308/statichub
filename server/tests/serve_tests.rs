@@ -9,8 +9,21 @@ use statichub_server::{
     create_router,
     models::{Project, Deploy},
     storage::{FilesystemStorage, Storage},
-    api::DeployState,
+    api::{DeployState, AuthState},
 };
+
+fn create_test_auth_state(pool: SqlitePool) -> Arc<AuthState> {
+    Arc::new(
+        AuthState::new(
+            pool,
+            "test_client_id".to_string(),
+            "test_client_secret".to_string(),
+            "http://localhost:3000/auth/callback/google".to_string(),
+            "test_jwt_secret".to_string(),
+        )
+        .unwrap(),
+    )
+}
 
 #[sqlx::test]
 async fn test_serve_index_html(pool: SqlitePool) {
@@ -36,7 +49,8 @@ async fn test_serve_index_html(pool: SqlitePool) {
         storage: storage.clone(),
         base_url: "http://statichub.io".to_string(),
     });
-    let app = create_router(state);
+    let auth_state = create_test_auth_state(pool.clone());
+    let app = create_router(state, auth_state);
 
     // Request
     let response = app
@@ -82,7 +96,8 @@ async fn test_serve_nested_file(pool: SqlitePool) {
         storage: storage.clone(),
         base_url: "http://statichub.io".to_string(),
     });
-    let app = create_router(state);
+    let auth_state = create_test_auth_state(pool.clone());
+    let app = create_router(state, auth_state);
 
     let response = app
         .oneshot(
@@ -125,7 +140,8 @@ async fn test_clean_urls(pool: SqlitePool) {
         storage: storage.clone(),
         base_url: "http://statichub.io".to_string(),
     });
-    let app = create_router(state);
+    let auth_state = create_test_auth_state(pool.clone());
+    let app = create_router(state, auth_state);
 
     // Request /about (without .html)
     let response = app
@@ -167,7 +183,8 @@ async fn test_spa_mode(pool: SqlitePool) {
         storage: storage.clone(),
         base_url: "http://statichub.io".to_string(),
     });
-    let app = create_router(state);
+    let auth_state = create_test_auth_state(pool.clone());
+    let app = create_router(state, auth_state);
 
     // Request non-existent path
     let response = app
@@ -210,7 +227,8 @@ async fn test_custom_headers(pool: SqlitePool) {
         storage: storage.clone(),
         base_url: "http://statichub.io".to_string(),
     });
-    let app = create_router(state);
+    let auth_state = create_test_auth_state(pool.clone());
+    let app = create_router(state, auth_state);
 
     let response = app
         .oneshot(
@@ -250,7 +268,8 @@ async fn test_not_found(pool: SqlitePool) {
         storage: storage.clone(),
         base_url: "http://statichub.io".to_string(),
     });
-    let app = create_router(state);
+    let auth_state = create_test_auth_state(pool.clone());
+    let app = create_router(state, auth_state);
 
     let response = app
         .oneshot(
@@ -276,7 +295,8 @@ async fn test_subdomain_not_found(pool: SqlitePool) {
         storage: storage.clone(),
         base_url: "http://statichub.io".to_string(),
     });
-    let app = create_router(state);
+    let auth_state = create_test_auth_state(pool.clone());
+    let app = create_router(state, auth_state);
 
     let response = app
         .oneshot(
@@ -315,7 +335,8 @@ async fn test_directory_index(pool: SqlitePool) {
         storage: storage.clone(),
         base_url: "http://statichub.io".to_string(),
     });
-    let app = create_router(state);
+    let auth_state = create_test_auth_state(pool.clone());
+    let app = create_router(state, auth_state);
 
     // Request /subdir/ (with trailing slash)
     let response = app
@@ -357,7 +378,8 @@ async fn test_redirect_exact_path(pool: SqlitePool) {
         storage: storage.clone(),
         base_url: "http://statichub.io".to_string(),
     });
-    let app = create_router(state);
+    let auth_state = create_test_auth_state(pool.clone());
+    let app = create_router(state, auth_state);
 
     // Request /old which should redirect to /new
     let response = app
@@ -401,7 +423,8 @@ async fn test_redirect_custom_status(pool: SqlitePool) {
         storage: storage.clone(),
         base_url: "http://statichub.io".to_string(),
     });
-    let app = create_router(state);
+    let auth_state = create_test_auth_state(pool.clone());
+    let app = create_router(state, auth_state);
 
     // Request /temp which should redirect to /target with 302
     let response = app
@@ -447,7 +470,8 @@ async fn test_redirect_not_matching_similar_paths(pool: SqlitePool) {
         storage: storage.clone(),
         base_url: "http://statichub.io".to_string(),
     });
-    let app = create_router(state.clone());
+    let auth_state = create_test_auth_state(pool.clone());
+    let app = create_router(state.clone(), auth_state);
 
     // Request /old-page should NOT redirect (doesn't match /old exactly or with trailing /)
     let response = app
@@ -465,7 +489,8 @@ async fn test_redirect_not_matching_similar_paths(pool: SqlitePool) {
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 
     // Request /old/ SHOULD redirect (prefix match with /)
-    let app2 = create_router(state.clone());
+    let auth_state2 = create_test_auth_state(pool.clone());
+    let app2 = create_router(state.clone(), auth_state2);
     let response2 = app2
         .oneshot(
             Request::builder()
@@ -484,7 +509,8 @@ async fn test_redirect_not_matching_similar_paths(pool: SqlitePool) {
     );
 
     // Request /old/page SHOULD redirect (prefix match with /)
-    let app3 = create_router(state);
+    let auth_state3 = create_test_auth_state(pool.clone());
+    let app3 = create_router(state, auth_state3);
     let response3 = app3
         .oneshot(
             Request::builder()
