@@ -185,12 +185,11 @@ fn generate_random_subdomain() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::create_pool;
     use crate::models::User;
 
     #[tokio::test]
     async fn test_create_anonymous_project() {
-        let pool = create_pool(":memory:").await.unwrap();
+        let pool = crate::test_utils::create_test_pool().await.unwrap();
 
         let project = Project::create_anonymous(&pool, None).await.unwrap();
         assert!(project.is_anonymous);
@@ -199,7 +198,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_owned_project() {
-        let pool = create_pool(":memory:").await.unwrap();
+        let pool = crate::test_utils::create_test_pool().await.unwrap();
 
         let user = User::create(&pool, "google", "123", "test@example.com", "testuser")
             .await.unwrap();

@@ -113,7 +113,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_create_in_memory_db() {
-        let pool = create_pool(":memory:").await.unwrap();
+        let pool = crate::test_utils::create_test_pool().await.unwrap();
 
         // Verify tables exist
         let result = sqlx::query("SELECT name FROM sqlite_master WHERE type='table'")

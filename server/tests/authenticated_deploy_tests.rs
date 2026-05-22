@@ -8,7 +8,7 @@ use tower::ServiceExt;
 
 #[tokio::test]
 async fn test_authenticated_deploy_creates_new_project() {
-    let pool = db::create_pool(":memory:").await.unwrap();
+    let pool = statichub_server::test_utils::create_test_pool().await.unwrap();
 
     // Create a test user
     let user = models::User::create(&pool, "google", "test123", "test@example.com", "testuser")
@@ -85,7 +85,7 @@ async fn test_authenticated_deploy_creates_new_project() {
 
 #[tokio::test]
 async fn test_authenticated_deploy_requires_jwt() {
-    let pool = db::create_pool(":memory:").await.unwrap();
+    let pool = statichub_server::test_utils::create_test_pool().await.unwrap();
 
     let temp_storage_dir = tempfile::tempdir().unwrap();
     let storage = Arc::new(storage::FilesystemStorage::new(temp_storage_dir.path().to_path_buf())) as Arc<dyn storage::Storage>;
@@ -132,7 +132,7 @@ async fn test_authenticated_deploy_requires_jwt() {
 
 #[tokio::test]
 async fn test_authenticated_deploy_validates_project_name() {
-    let pool = db::create_pool(":memory:").await.unwrap();
+    let pool = statichub_server::test_utils::create_test_pool().await.unwrap();
 
     let user = models::User::create(&pool, "google", "test123", "test@example.com", "testuser")
         .await
@@ -186,7 +186,7 @@ async fn test_authenticated_deploy_validates_project_name() {
 
 #[tokio::test]
 async fn test_authenticated_deploy_enforces_ownership() {
-    let pool = db::create_pool(":memory:").await.unwrap();
+    let pool = statichub_server::test_utils::create_test_pool().await.unwrap();
 
     // Create two users
     let user1 = models::User::create(&pool, "google", "user1", "user1@example.com", "user1")
@@ -249,7 +249,7 @@ async fn test_authenticated_deploy_enforces_ownership() {
 
 #[tokio::test]
 async fn test_authenticated_deploy_increments_version() {
-    let pool = db::create_pool(":memory:").await.unwrap();
+    let pool = statichub_server::test_utils::create_test_pool().await.unwrap();
 
     let user = models::User::create(&pool, "google", "test123", "test@example.com", "testuser")
         .await

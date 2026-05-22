@@ -69,11 +69,10 @@ impl User {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::create_pool;
 
     #[tokio::test]
     async fn test_create_and_find_user() {
-        let pool = create_pool(":memory:").await.unwrap();
+        let pool = crate::test_utils::create_test_pool().await.unwrap();
 
         let user = User::create(
             &pool,

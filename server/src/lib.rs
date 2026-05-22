@@ -6,6 +6,9 @@ pub mod api;
 pub mod middleware;
 pub mod cli;
 
+// Test utilities available for integration tests
+pub mod test_utils;
+
 use axum::{middleware as axum_middleware, routing::{delete, get, post}, Router};
 use std::sync::Arc;
 use tower_http::trace::{DefaultMakeSpan, TraceLayer};

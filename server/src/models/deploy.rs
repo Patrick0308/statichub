@@ -182,12 +182,11 @@ impl Deploy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::db::create_pool;
     use crate::models::{User, Project};
 
     #[tokio::test]
     async fn test_create_deploy_increments_version() {
-        let pool = create_pool(":memory:").await.unwrap();
+        let pool = crate::test_utils::create_test_pool().await.unwrap();
 
         let user = User::create(&pool, "google", "123", "test@example.com", "testuser")
             .await.unwrap();
@@ -203,7 +202,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_delete_old_deploys() {
-        let pool = create_pool(":memory:").await.unwrap();
+        let pool = crate::test_utils::create_test_pool().await.unwrap();
 
         let user = User::create(&pool, "google", "123", "test@example.com", "testuser")
             .await.unwrap();
