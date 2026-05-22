@@ -61,9 +61,19 @@ pub async fn serve_static_file(
     } else {
         // Fall back to subdomain lookup
         let subdomain = extract_subdomain(&hostname, &state.base_url)?;
-        Project::find_by_subdomain(&state.pool, &subdomain)
-            .await?
-            .ok_or_else(|| AppError::NotFound(format!("Project not found: {}", subdomain)))?
+
+        // Try exact match first (works for both formats)
+        if let Some(proj) = Project::find_by_subdomain(&state.pool, &subdomain).await? {
+            proj
+        } else {
+            // For named projects, database stores "name.statichub.io" but hostname is "name.localhost:3000"
+            // Try with statichub.io suffix
+            let full_subdomain = format!("{}.statichub.io", subdomain);
+
+            Project::find_by_subdomain(&state.pool, &full_subdomain)
+                .await?
+                .ok_or_else(|| AppError::NotFound(format!("Project not found: {}", subdomain)))?
+        }
     };
 
     // Get project config
