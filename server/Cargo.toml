@@ -55,3 +55,6 @@ statichub-shared = { path = "../shared" }
 [dev-dependencies]
 wiremock = "0.6"
 tempfile = "3"
+
+[features]
+vendored-openssl = ["reqwest/native-tls-vendored"]

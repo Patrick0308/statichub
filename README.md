@@ -49,32 +49,41 @@ statichub deploy ./dist --name my-app
 
 Download the latest release for your platform from the [Releases page](https://github.com/Patrick0308/statichub/releases).
 
+Each release package includes both the **CLI tool** (`statichub`) and the **server** (`statichub-server`).
+
 **macOS (Intel)**:
 ```bash
 curl -L https://github.com/Patrick0308/statichub/releases/latest/download/statichub-x86_64-apple-darwin.tar.gz | tar xz
+# Install CLI only
 sudo mv statichub /usr/local/bin/
+# Or install both CLI and server
+sudo mv statichub statichub-server /usr/local/bin/
 ```
 
 **macOS (Apple Silicon)**:
 ```bash
 curl -L https://github.com/Patrick0308/statichub/releases/latest/download/statichub-aarch64-apple-darwin.tar.gz | tar xz
 sudo mv statichub /usr/local/bin/
+# Optionally install server: sudo mv statichub-server /usr/local/bin/
 ```
 
 **Linux (x86_64)**:
 ```bash
 curl -L https://github.com/Patrick0308/statichub/releases/latest/download/statichub-x86_64-linux-musl.tar.gz | tar xz
 sudo mv statichub /usr/local/bin/
+# Optionally install server: sudo mv statichub-server /usr/local/bin/
 ```
 
 **Windows**:
 1. Download `statichub-x86_64-windows.zip` from the releases page
-2. Extract the archive
+2. Extract the archive (contains `statichub.exe` and `statichub-server.exe`)
 3. Add the extracted directory to your PATH
 
 **Verify Installation**:
 ```bash
 statichub --version
+# If server is installed:
+statichub-server --version
 ```
 
 ### From Source
