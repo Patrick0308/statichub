@@ -23,8 +23,8 @@ impl Project {
         // Generate random 6-character identifier
         let identifier = generate_random_subdomain();
         let name = identifier.clone();
-        let subdomain = identifier.clone(); // Store identifier only
-        let config_json = config.map(|c| serde_json::to_string(c).ok()).flatten();
+        let subdomain = identifier; // Store identifier only
+        let config_json = config.and_then(|c| serde_json::to_string(c).ok());
 
         let project = sqlx::query_as::<_, Project>(
             r#"
@@ -48,8 +48,8 @@ impl Project {
         name: &str,
         config: Option<&ProjectConfig>,
     ) -> Result<Project, sqlx::Error> {
-        let subdomain = format!("{}.statichub.io", name);
-        let config_json = config.map(|c| serde_json::to_string(c).ok()).flatten();
+        let subdomain = name.to_string(); // Store identifier only
+        let config_json = config.and_then(|c| serde_json::to_string(c).ok());
 
         let project = sqlx::query_as::<_, Project>(
             r#"
@@ -74,8 +74,8 @@ impl Project {
         name: &str,
         config: Option<&ProjectConfig>,
     ) -> Result<Project, sqlx::Error> {
-        let subdomain = format!("{}.statichub.io", name);
-        let config_json = config.map(|c| serde_json::to_string(c).ok()).flatten();
+        let subdomain = name.to_string(); // Store identifier only
+        let config_json = config.and_then(|c| serde_json::to_string(c).ok());
 
         let project = sqlx::query_as::<_, Project>(
             r#"
