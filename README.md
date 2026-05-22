@@ -110,26 +110,26 @@ cp server/.env.example server/.env
 
 **Configure environment variables in `.env`:**
 
-- `PORT` - Server listening port (default: 3000)
-- `ALLOWED_DOMAINS` - Comma-separated list of domains the server accepts (default: localhost,statichub.dev)
-- `DATABASE_URL` - SQLite database path (default: sqlite:statichub.db)
-- `STORAGE_PATH` - Path for deployment storage (default: ~/.statichub/deploys)
-- `GOOGLE_CLIENT_ID` - Google OAuth client ID
-- `GOOGLE_CLIENT_SECRET` - Google OAuth client secret
-- `GOOGLE_REDIRECT_URL` - OAuth callback URL (must match PORT, e.g., http://localhost:3000/auth/callback/google)
-- `JWT_SECRET` - Secret key for JWT token signing (use a long random string)
+- `STATICHUB_PORT` - Server listening port (default: 3000)
+- `STATICHUB_ALLOWED_DOMAINS` - Comma-separated list of domains the server accepts (default: localhost,statichub.dev)
+- `STATICHUB_DATABASE_URL` - SQLite database path (default: sqlite:statichub.db)
+- `STATICHUB_STORAGE_PATH` - Path for deployment storage (default: ~/.statichub/deploys)
+- `STATICHUB_GOOGLE_CLIENT_ID` - Google OAuth client ID
+- `STATICHUB_GOOGLE_CLIENT_SECRET` - Google OAuth client secret
+- `STATICHUB_GOOGLE_REDIRECT_URL` - OAuth callback URL (must match PORT, e.g., http://localhost:3000/auth/callback/google)
+- `STATICHUB_JWT_SECRET` - Secret key for JWT token signing (use a long random string)
 
 **Multi-domain setup:**
 
-The server can serve multiple domains. Each domain in `ALLOWED_DOMAINS` will:
+The server can serve multiple domains. Each domain in `STATICHUB_ALLOWED_DOMAINS` will:
 - Accept deployments via CLI (using `STATICHUB_SERVER` environment variable)
 - Serve static content based on hostname routing
 - Support custom domain mappings
 
 Example for production:
 ```bash
-PORT=80
-ALLOWED_DOMAINS=statichub.dev,statichub.com,localhost
+STATICHUB_PORT=80
+STATICHUB_ALLOWED_DOMAINS=statichub.dev,statichub.com,localhost
 ```
 
 **Start the server:**
@@ -141,8 +141,8 @@ statichub-server db init
 # Start the server
 statichub-server serve
 
-# The server listens on the PORT specified in .env
-# and accepts requests for all domains in ALLOWED_DOMAINS
+# The server listens on the STATICHUB_PORT specified in .env
+# and accepts requests for all domains in STATICHUB_ALLOWED_DOMAINS
 ```
 
 **Database management commands:**
@@ -348,21 +348,21 @@ cargo test test_add_domain
 ### Environment Variables
 
 **Server:**
-- `DATABASE_URL` - SQLite database path (default: `sqlite:statichub.db`)
-- `PORT` - Server listening port (default: `3000`)
-- `ALLOWED_DOMAINS` - Comma-separated list of allowed domains (default: `localhost,statichub.dev`)
-- `STORAGE_PATH` - Path for deployment storage (default: `~/.statichub/deploys`)
-- `GOOGLE_CLIENT_ID` - Google OAuth client ID
-- `GOOGLE_CLIENT_SECRET` - Google OAuth client secret
-- `GOOGLE_REDIRECT_URL` - OAuth callback URL (must match your PORT)
-- `JWT_SECRET` - Secret key for JWT token signing
+- `STATICHUB_DATABASE_URL` - SQLite database path (default: `sqlite:statichub.db`)
+- `STATICHUB_PORT` - Server listening port (default: `3000`)
+- `STATICHUB_ALLOWED_DOMAINS` - Comma-separated list of allowed domains (default: `localhost,statichub.dev`)
+- `STATICHUB_STORAGE_PATH` - Path for deployment storage (default: `~/.statichub/deploys`)
+- `STATICHUB_GOOGLE_CLIENT_ID` - Google OAuth client ID
+- `STATICHUB_GOOGLE_CLIENT_SECRET` - Google OAuth client secret
+- `STATICHUB_GOOGLE_REDIRECT_URL` - OAuth callback URL (must match your PORT)
+- `STATICHUB_JWT_SECRET` - Secret key for JWT token signing
 
 **CLI:**
 - `STATICHUB_SERVER` - Server URL (default: `http://statichub.dev`)
 
 **Multi-domain Configuration:**
 
-The server uses `PORT` and `ALLOWED_DOMAINS` instead of a single `BASE_URL`. This allows:
+The server uses `STATICHUB_PORT` and `STATICHUB_ALLOWED_DOMAINS` instead of a single `BASE_URL`. This allows:
 - Serving multiple domains from one server instance
 - Flexible deployment across different environments
 - Hostname-based routing for static content
@@ -372,8 +372,8 @@ Example configurations:
 **Development:**
 ```bash
 # Server .env
-PORT=3000
-ALLOWED_DOMAINS=localhost,statichub.dev
+STATICHUB_PORT=3000
+STATICHUB_ALLOWED_DOMAINS=localhost,statichub.dev
 
 # CLI environment
 export STATICHUB_SERVER=http://localhost:3000
@@ -382,14 +382,14 @@ export STATICHUB_SERVER=http://localhost:3000
 **Production:**
 ```bash
 # Server .env
-PORT=80
-ALLOWED_DOMAINS=statichub.dev,statichub.com
+STATICHUB_PORT=80
+STATICHUB_ALLOWED_DOMAINS=statichub.dev,statichub.com
 
 # CLI environment (users point to their preferred domain)
 export STATICHUB_SERVER=http://statichub.dev
 ```
 
-The CLI's `STATICHUB_SERVER` should point to any domain in the server's `ALLOWED_DOMAINS` list.
+The CLI's `STATICHUB_SERVER` should point to any domain in the server's `STATICHUB_ALLOWED_DOMAINS` list.
 
 ### Database Migrations
 

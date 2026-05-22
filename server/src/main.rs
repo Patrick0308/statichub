@@ -36,7 +36,7 @@ async fn main() -> anyhow::Result<()> {
 }
 
 async fn serve() -> anyhow::Result<()> {
-    let database_url = std::env::var("DATABASE_URL")
+    let database_url = std::env::var("STATICHUB_DATABASE_URL")
         .unwrap_or_else(|_| "sqlite:statichub.db".to_string());
 
     // Try to connect to database
@@ -82,7 +82,7 @@ async fn serve() -> anyhow::Result<()> {
     tracing::info!("  Allowed domains: {:?}", config.allowed_domains);
 
     // Storage setup
-    let storage_path = std::env::var("STORAGE_PATH")
+    let storage_path = std::env::var("STATICHUB_STORAGE_PATH")
         .unwrap_or_else(|_| "./var/statichub/deploys".to_string());
 
     let storage = Arc::new(storage::FilesystemStorage::new(storage_path.into())) as Arc<dyn storage::Storage>;
@@ -95,14 +95,14 @@ async fn serve() -> anyhow::Result<()> {
 
     let auth_state = Arc::new(api::AuthState::new(
         pool.clone(),
-        std::env::var("GOOGLE_CLIENT_ID")
-            .expect("GOOGLE_CLIENT_ID must be set"),
-        std::env::var("GOOGLE_CLIENT_SECRET")
-            .expect("GOOGLE_CLIENT_SECRET must be set"),
-        std::env::var("GOOGLE_REDIRECT_URL")
+        std::env::var("STATICHUB_GOOGLE_CLIENT_ID")
+            .expect("STATICHUB_GOOGLE_CLIENT_ID must be set"),
+        std::env::var("STATICHUB_GOOGLE_CLIENT_SECRET")
+            .expect("STATICHUB_GOOGLE_CLIENT_SECRET must be set"),
+        std::env::var("STATICHUB_GOOGLE_REDIRECT_URL")
             .unwrap_or_else(|_| "http://localhost:3000/auth/callback/google".to_string()),
-        std::env::var("JWT_SECRET")
-            .expect("JWT_SECRET must be set in production"),
+        std::env::var("STATICHUB_JWT_SECRET")
+            .expect("STATICHUB_JWT_SECRET must be set in production"),
     )?);
 
     // Build router
@@ -122,7 +122,7 @@ async fn serve() -> anyhow::Result<()> {
 }
 
 async fn handle_db_command(command: cli::DbCommands) -> anyhow::Result<()> {
-    let database_url = std::env::var("DATABASE_URL")
+    let database_url = std::env::var("STATICHUB_DATABASE_URL")
         .unwrap_or_else(|_| "sqlite:statichub.db".to_string());
 
     match command {

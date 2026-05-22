@@ -16,7 +16,7 @@ use serial_test::serial;
 #[tokio::test]
 #[serial]
 async fn test_deploy_with_different_hosts() {
-    std::env::set_var("ALLOWED_DOMAINS", "localhost,statichub.dev,example.com");
+    std::env::set_var("STATICHUB_ALLOWED_DOMAINS", "localhost,statichub.dev,example.com");
 
     let pool = statichub_server::test_utils::create_test_pool()
         .await
@@ -127,13 +127,13 @@ async fn test_deploy_with_different_hosts() {
         url
     );
 
-    std::env::remove_var("ALLOWED_DOMAINS");
+    std::env::remove_var("STATICHUB_ALLOWED_DOMAINS");
 }
 
 #[tokio::test]
 #[serial]
 async fn test_reject_unallowed_domain() {
-    std::env::set_var("ALLOWED_DOMAINS", "localhost,statichub.dev");
+    std::env::set_var("STATICHUB_ALLOWED_DOMAINS", "localhost,statichub.dev");
 
     let pool = statichub_server::test_utils::create_test_pool()
         .await
@@ -191,13 +191,13 @@ async fn test_reject_unallowed_domain() {
         "Request with unauthorized domain should be rejected with 403"
     );
 
-    std::env::remove_var("ALLOWED_DOMAINS");
+    std::env::remove_var("STATICHUB_ALLOWED_DOMAINS");
 }
 
 #[tokio::test]
 #[serial]
 async fn test_missing_host_header() {
-    std::env::set_var("ALLOWED_DOMAINS", "localhost");
+    std::env::set_var("STATICHUB_ALLOWED_DOMAINS", "localhost");
 
     let pool = statichub_server::test_utils::create_test_pool()
         .await
@@ -255,5 +255,5 @@ async fn test_missing_host_header() {
         "Request without Host header should fail"
     );
 
-    std::env::remove_var("ALLOWED_DOMAINS");
+    std::env::remove_var("STATICHUB_ALLOWED_DOMAINS");
 }

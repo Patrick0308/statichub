@@ -31,12 +31,12 @@ pub struct ServerConfig {
 
 impl ServerConfig {
     pub fn from_env() -> Result<Self> {
-        let port = std::env::var("PORT")
+        let port = std::env::var("STATICHUB_PORT")
             .unwrap_or_else(|_| "3000".to_string())
             .parse()
-            .context("Invalid PORT value")?;
+            .context("Invalid STATICHUB_PORT value")?;
 
-        let allowed_domains = std::env::var("ALLOWED_DOMAINS")
+        let allowed_domains = std::env::var("STATICHUB_ALLOWED_DOMAINS")
             .unwrap_or_else(|_| "localhost,statichub.dev".to_string())
             .split(',')
             .map(|s| s.trim().to_string())
@@ -132,75 +132,75 @@ mod config_tests {
     #[test]
     #[serial]
     fn test_default_port() {
-        std::env::remove_var("PORT");
+        std::env::remove_var("STATICHUB_PORT");
         let config = ServerConfig::from_env().unwrap();
         assert_eq!(config.port, 3000);
-        std::env::remove_var("PORT");
+        std::env::remove_var("STATICHUB_PORT");
     }
 
     #[test]
     #[serial]
     fn test_custom_port() {
-        std::env::remove_var("PORT");
-        std::env::set_var("PORT", "8080");
+        std::env::remove_var("STATICHUB_PORT");
+        std::env::set_var("STATICHUB_PORT", "8080");
         let config = ServerConfig::from_env().unwrap();
         assert_eq!(config.port, 8080);
-        std::env::remove_var("PORT");
+        std::env::remove_var("STATICHUB_PORT");
     }
 
     #[test]
     #[serial]
     fn test_invalid_port() {
-        std::env::remove_var("PORT");
-        std::env::set_var("PORT", "not_a_number");
+        std::env::remove_var("STATICHUB_PORT");
+        std::env::set_var("STATICHUB_PORT", "not_a_number");
         let result = ServerConfig::from_env();
         assert!(result.is_err());
-        std::env::remove_var("PORT");
+        std::env::remove_var("STATICHUB_PORT");
     }
 
     #[test]
     #[serial]
     fn test_default_allowed_domains() {
-        std::env::remove_var("ALLOWED_DOMAINS");
+        std::env::remove_var("STATICHUB_ALLOWED_DOMAINS");
         let config = ServerConfig::from_env().unwrap();
         assert_eq!(config.allowed_domains.len(), 2);
         assert!(config.allowed_domains.contains(&"localhost".to_string()));
         assert!(config.allowed_domains.contains(&"statichub.dev".to_string()));
-        std::env::remove_var("ALLOWED_DOMAINS");
+        std::env::remove_var("STATICHUB_ALLOWED_DOMAINS");
     }
 
     #[test]
     #[serial]
     fn test_custom_allowed_domains() {
-        std::env::remove_var("ALLOWED_DOMAINS");
-        std::env::set_var("ALLOWED_DOMAINS", "example.com,test.dev,localhost");
+        std::env::remove_var("STATICHUB_ALLOWED_DOMAINS");
+        std::env::set_var("STATICHUB_ALLOWED_DOMAINS", "example.com,test.dev,localhost");
         let config = ServerConfig::from_env().unwrap();
         assert_eq!(config.allowed_domains.len(), 3);
         assert!(config.allowed_domains.contains(&"example.com".to_string()));
         assert!(config.allowed_domains.contains(&"test.dev".to_string()));
         assert!(config.allowed_domains.contains(&"localhost".to_string()));
-        std::env::remove_var("ALLOWED_DOMAINS");
+        std::env::remove_var("STATICHUB_ALLOWED_DOMAINS");
     }
 
     #[test]
     #[serial]
     fn test_allowed_domains_with_spaces() {
-        std::env::remove_var("ALLOWED_DOMAINS");
-        std::env::set_var("ALLOWED_DOMAINS", " example.com , test.dev , localhost ");
+        std::env::remove_var("STATICHUB_ALLOWED_DOMAINS");
+        std::env::set_var("STATICHUB_ALLOWED_DOMAINS", " example.com , test.dev , localhost ");
         let config = ServerConfig::from_env().unwrap();
         assert_eq!(config.allowed_domains.len(), 3);
         assert!(config.allowed_domains.contains(&"example.com".to_string()));
-        std::env::remove_var("ALLOWED_DOMAINS");
+        std::env::remove_var("STATICHUB_ALLOWED_DOMAINS");
     }
 
     #[test]
     #[serial]
     fn test_allowed_domains_filters_empty() {
-        std::env::remove_var("ALLOWED_DOMAINS");
-        std::env::set_var("ALLOWED_DOMAINS", "example.com,,test.dev");
+        std::env::remove_var("STATICHUB_ALLOWED_DOMAINS");
+        std::env::set_var("STATICHUB_ALLOWED_DOMAINS", "example.com,,test.dev");
         let config = ServerConfig::from_env().unwrap();
         assert_eq!(config.allowed_domains.len(), 2);
-        std::env::remove_var("ALLOWED_DOMAINS");
+        std::env::remove_var("STATICHUB_ALLOWED_DOMAINS");
     }
 
     #[test]
