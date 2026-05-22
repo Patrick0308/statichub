@@ -4,7 +4,7 @@ use axum::{
 };
 use sqlx::SqlitePool;
 use std::sync::Arc;
-use statichub_shared::DeployResponse;
+use statichub_shared::{DeployResponse, build_project_url};
 use crate::{error::{Result, AppError}, storage::Storage, models::{Project, Deploy}};
 
 pub struct DeployState {
@@ -55,9 +55,9 @@ pub async fn create_anonymous_deploy(
         .await?;
 
     Ok(Json(DeployResponse {
-        url: format!("https://{}.statichub.io", subdomain),
-        subdomain: format!("{}.statichub.io", subdomain),
-        version: Some(deploy.version),
+        url: build_project_url(&project.subdomain, &state.base_url),
+        subdomain: project.subdomain.clone(),
+        version: None,
         deploy_id: deploy.id,
         project_id: Some(project.id),
     }))
@@ -155,8 +155,4 @@ fn sanitize_filename(filename: &str) -> Result<String> {
     }
 
     Ok(normalized)
-}
-
-#[cfg(test)]
-mod tests {
 }
