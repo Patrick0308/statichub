@@ -192,30 +192,41 @@ async fn process_multipart_files(
 }
 
 fn sanitize_filename(filename: &str) -> Result<String> {
-    // Reject paths with directory traversal attempts
-    if filename.contains("..") || filename.contains('/') || filename.contains('\\') {
-        return Err(AppError::BadRequest(format!(
-            "Invalid filename: '{}' contains forbidden characters",
-            filename
-        )));
-    }
-
     // Reject empty filenames
     if filename.trim().is_empty() {
-        return Err(AppError::BadRequest(
-            "Filename cannot be empty".to_string(),
-        ));
+        return Err(AppError::BadRequest("Filename cannot be empty".to_string()));
     }
 
-    // Reject hidden files
-    if filename.starts_with('.') {
+    // Reject paths with directory traversal attempts
+    if filename.contains("..") {
         return Err(AppError::BadRequest(format!(
-            "Invalid filename: '{}' cannot start with a dot",
+            "Invalid filename: '{}' contains directory traversal",
             filename
         )));
     }
 
-    Ok(filename.to_string())
+    // Reject absolute paths (starting with / or \)
+    if filename.starts_with('/') || filename.starts_with('\\') {
+        return Err(AppError::BadRequest(format!(
+            "Invalid filename: '{}' cannot be an absolute path",
+            filename
+        )));
+    }
+
+    // Normalize path separators to forward slashes
+    let normalized = filename.replace('\\', "/");
+
+    // Reject any path component starting with a dot (hidden files/directories)
+    for component in normalized.split('/') {
+        if component.starts_with('.') {
+            return Err(AppError::BadRequest(format!(
+                "Invalid filename: '{}' contains hidden file or directory",
+                filename
+            )));
+        }
+    }
+
+    Ok(normalized)
 }
 
 #[cfg(test)]
