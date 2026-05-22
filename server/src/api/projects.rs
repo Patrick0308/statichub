@@ -266,6 +266,10 @@ mod tests {
         assert!(sanitize_filename("index.html").is_ok());
         assert!(sanitize_filename("styles.css").is_ok());
         assert!(sanitize_filename("script.js").is_ok());
+        // Subdirectories are allowed
+        assert!(sanitize_filename("css/styles.css").is_ok());
+        assert!(sanitize_filename("js/app.js").is_ok());
+        assert!(sanitize_filename("assets/images/logo.png").is_ok());
     }
 
     #[test]
@@ -273,7 +277,7 @@ mod tests {
         // Directory traversal
         assert!(sanitize_filename("../etc/passwd").is_err());
         assert!(sanitize_filename("..\\windows\\system32").is_err());
-        assert!(sanitize_filename("dir/file.txt").is_err());
+        assert!(sanitize_filename("dir/../file.txt").is_err());
 
         // Empty
         assert!(sanitize_filename("").is_err());
@@ -281,5 +285,6 @@ mod tests {
 
         // Hidden files
         assert!(sanitize_filename(".htaccess").is_err());
+        assert!(sanitize_filename("dir/.hidden").is_err());
     }
 }
