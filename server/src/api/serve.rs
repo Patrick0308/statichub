@@ -1,6 +1,7 @@
 use crate::{
     api::DeployState,
     error::{AppError, Result},
+    middleware::RequestHost,
     models::{Domain, Project},
     storage::Storage,
 };
@@ -15,13 +16,9 @@ use statichub_shared::ProjectConfig;
 /// Try to find a project via custom domain
 async fn try_custom_domain(
     hostname: &str,
+    base_domain: &str,
     state: &Arc<DeployState>,
 ) -> Result<Option<Project>> {
-    // Check if hostname is a custom domain (not a subdomain of base_url)
-    let base_domain = state.base_url
-        .trim_start_matches("http://")
-        .trim_start_matches("https://");
-
     // If hostname ends with base domain, it's not a custom domain
     if hostname.ends_with(base_domain) {
         return Ok(None);
@@ -53,14 +50,22 @@ async fn try_custom_domain(
 pub async fn serve_static_file(
     Host(hostname): Host,
     State(state): State<Arc<DeployState>>,
+    axum::http::request::Parts { extensions, .. }: axum::http::request::Parts,
     request: Request,
 ) -> Result<Response> {
+    // Extract host from request
+    let request_host = extensions
+        .get::<RequestHost>()
+        .ok_or(AppError::MissingHost)?;
+
+    let base_domain = &request_host.to_string();
+
     // Try custom domain first
-    let project = if let Some(proj) = try_custom_domain(&hostname, &state).await? {
+    let project = if let Some(proj) = try_custom_domain(&hostname, base_domain, &state).await? {
         proj
     } else {
         // Fall back to subdomain lookup (now simple: just identifier)
-        let subdomain = extract_subdomain(&hostname, &state.base_url)?;
+        let subdomain = extract_subdomain(&hostname, base_domain)?;
         Project::find_by_subdomain(&state.pool, &subdomain)
             .await?
             .ok_or_else(|| AppError::NotFound(format!("Project not found: {}", subdomain)))?

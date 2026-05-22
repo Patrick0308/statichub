@@ -82,13 +82,9 @@ async fn serve(port: u16) -> anyhow::Result<()> {
     let storage = Arc::new(storage::FilesystemStorage::new(storage_path.into())) as Arc<dyn storage::Storage>;
 
     // Shared state
-    let base_url = std::env::var("BASE_URL")
-        .unwrap_or_else(|_| "http://localhost:3000".to_string());
-
     let deploy_state = Arc::new(api::DeployState {
         pool: pool.clone(),
         storage: storage.clone(),
-        base_url,
     });
 
     let auth_state = Arc::new(api::AuthState::new(
