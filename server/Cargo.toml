@@ -22,6 +22,9 @@ tokio.workspace = true
 anyhow.workspace = true
 thiserror.workspace = true
 
+# CLI
+clap = { version = "4", features = ["derive"] }
+
 # Web framework
 axum = { version = "0.7", features = ["multipart"] }
 tower = { version = "0.4", features = ["util"] }

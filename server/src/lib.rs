@@ -4,6 +4,7 @@ pub mod models;
 pub mod error;
 pub mod api;
 pub mod middleware;
+pub mod cli;
 
 use axum::{middleware as axum_middleware, routing::{delete, get, post}, Router};
 use std::sync::Arc;

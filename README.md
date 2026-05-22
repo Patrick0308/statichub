@@ -107,12 +107,28 @@ cargo build --release -p statichub
 cp server/.env.example server/.env
 # Edit .env with your configuration
 
-# Run database migrations
-cd server
-sqlx migrate run
+# Initialize database (first time only)
+statichub-server db init
 
 # Start the server
-cargo run --release
+statichub-server serve
+# Or specify port: statichub-server serve --port 8080
+```
+
+**Database management commands:**
+
+```bash
+# Initialize new database
+statichub-server db init
+
+# Run pending migrations
+statichub-server db migrate
+
+# Check migration status
+statichub-server db status
+
+# Reset database (WARNING: deletes all data)
+statichub-server db reset
 ```
 
 ## CLI Commands

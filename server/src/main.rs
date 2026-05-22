@@ -1,5 +1,6 @@
-use statichub_server::{db, storage, api, create_router};
-use std::{net::SocketAddr, sync::Arc};
+use statichub_server::{db, storage, api, create_router, cli};
+use clap::Parser;
+use std::{net::SocketAddr, sync::Arc, io::Write};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
@@ -16,13 +17,63 @@ async fn main() -> anyhow::Result<()> {
         .with(tracing_subscriber::fmt::layer())
         .init();
 
-    // Database setup
+    let cli = cli::Cli::parse();
+
+    match cli.command {
+        Some(cli::Commands::Serve { port }) => {
+            serve(port).await?;
+        }
+        Some(cli::Commands::Db { command }) => {
+            handle_db_command(command).await?;
+        }
+        None => {
+            // Default: serve
+            serve(3000).await?;
+        }
+    }
+
+    Ok(())
+}
+
+async fn serve(port: u16) -> anyhow::Result<()> {
     let database_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "sqlite:statichub.db".to_string());
 
-    let pool = db::create_pool(&database_url).await?;
+    // Try to connect to database
+    let pool = match db::create_pool(&database_url).await {
+        Ok(pool) => pool,
+        Err(e) => {
+            eprintln!("\n❌ Failed to connect to database: {}", e);
+            eprintln!("\n💡 Did you run migrations?");
+            eprintln!("   Try: statichub-server db migrate\n");
+            std::process::exit(1);
+        }
+    };
 
-    tracing::info!("Database connected and migrations run");
+    // Check if migrations are up to date
+    match db::migration_status(&database_url).await {
+        Ok(migrations) => {
+            let pending: Vec<_> = migrations.iter()
+                .filter(|m| !m.applied)
+                .collect();
+
+            if !pending.is_empty() {
+                eprintln!("\n⚠️  Warning: {} pending migration(s)", pending.len());
+                for migration in pending {
+                    eprintln!("   - {} ({})", migration.description, migration.version);
+                }
+                eprintln!("\n💡 Run migrations with: statichub-server db migrate\n");
+                std::process::exit(1);
+            }
+        }
+        Err(_) => {
+            eprintln!("\n❌ Database exists but migration table not found");
+            eprintln!("💡 Run: statichub-server db migrate\n");
+            std::process::exit(1);
+        }
+    }
+
+    tracing::info!("✓ Database connected and migrations up to date");
 
     // Storage setup
     let storage_path = std::env::var("STORAGE_PATH")
@@ -55,11 +106,139 @@ async fn main() -> anyhow::Result<()> {
     // Build router
     let app = create_router(deploy_state, auth_state);
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
-    tracing::info!("Server listening on {}", addr);
+    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    tracing::info!("🚀 Server listening on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
+
+    Ok(())
+}
+
+async fn handle_db_command(command: cli::DbCommands) -> anyhow::Result<()> {
+    let database_url = std::env::var("DATABASE_URL")
+        .unwrap_or_else(|_| "sqlite:statichub.db".to_string());
+
+    match command {
+        cli::DbCommands::Init => {
+            println!("Initializing new database...");
+            println!("Database: {}\n", database_url);
+
+            // Check if database already exists
+            if let Ok(_) = db::create_pool(&database_url).await {
+                eprintln!("❌ Database already exists!");
+                eprintln!("💡 Use 'statichub-server db migrate' to update an existing database");
+                eprintln!("   Or 'statichub-server db reset' to recreate it");
+                std::process::exit(1);
+            }
+
+            // Run migrations (which will create the database)
+            match db::migrate(&database_url).await {
+                Ok(_) => {
+                    println!("✓ Database created successfully");
+
+                    // Show applied migrations
+                    if let Ok(migrations) = db::migration_status(&database_url).await {
+                        println!("\nInitialized with migrations:");
+                        for migration in migrations.iter().filter(|m| m.applied) {
+                            println!("  ✓ {} - {}", migration.version, migration.description);
+                        }
+                    }
+
+                    println!("\n✓ Database initialization complete");
+                    println!("💡 You can now start the server with: statichub-server serve");
+                }
+                Err(e) => {
+                    eprintln!("❌ Initialization failed: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+
+        cli::DbCommands::Migrate => {
+            println!("Running database migrations...");
+
+            match db::migrate(&database_url).await {
+                Ok(_) => {
+                    println!("✓ Migrations completed successfully");
+
+                    // Show current status
+                    if let Ok(migrations) = db::migration_status(&database_url).await {
+                        println!("\nApplied migrations:");
+                        for migration in migrations.iter().filter(|m| m.applied) {
+                            println!("  ✓ {} - {}", migration.version, migration.description);
+                        }
+                    }
+                }
+                Err(e) => {
+                    eprintln!("❌ Migration failed: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+
+        cli::DbCommands::Status => {
+            match db::migration_status(&database_url).await {
+                Ok(migrations) => {
+                    println!("Database migration status:\n");
+
+                    let applied: Vec<_> = migrations.iter().filter(|m| m.applied).collect();
+                    let pending: Vec<_> = migrations.iter().filter(|m| !m.applied).collect();
+
+                    if !applied.is_empty() {
+                        println!("Applied migrations:");
+                        for migration in applied {
+                            println!("  ✓ {} - {}", migration.version, migration.description);
+                        }
+                    }
+
+                    if !pending.is_empty() {
+                        println!("\nPending migrations:");
+                        for migration in pending {
+                            println!("  ⏳ {} - {}", migration.version, migration.description);
+                        }
+                        println!("\n💡 Run: statichub-server db migrate");
+                    } else {
+                        println!("\n✓ All migrations up to date");
+                    }
+                }
+                Err(e) => {
+                    eprintln!("❌ Failed to check migration status: {}", e);
+                    eprintln!("💡 Database might not exist. Run: statichub-server db migrate");
+                    std::process::exit(1);
+                }
+            }
+        }
+
+        cli::DbCommands::Reset { force } => {
+            if !force {
+                print!("\n⚠️  WARNING: This will DELETE ALL DATA in the database!\n");
+                print!("   Database: {}\n\n", database_url);
+                print!("Type 'yes' to confirm: ");
+                std::io::stdout().flush()?;
+
+                let mut input = String::new();
+                std::io::stdin().read_line(&mut input)?;
+
+                if input.trim() != "yes" {
+                    println!("Aborted.");
+                    return Ok(());
+                }
+            }
+
+            println!("Resetting database...");
+
+            match db::reset(&database_url).await {
+                Ok(_) => {
+                    println!("✓ Database reset and migrations applied");
+                }
+                Err(e) => {
+                    eprintln!("❌ Reset failed: {}", e);
+                    std::process::exit(1);
+                }
+            }
+        }
+    }
 
     Ok(())
 }
