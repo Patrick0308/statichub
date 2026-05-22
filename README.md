@@ -29,7 +29,7 @@ statichub deploy ./dist
 statichub deploy ./build --config statichub.yaml
 ```
 
-You'll get a unique URL like `https://x7k2m9.statichub.io` that expires after 24 hours.
+You'll get a unique URL like `https://x7k2m9.statichub.dev` that expires after 24 hours.
 
 ### 2. Deploy to a Named Project (Requires Login)
 
@@ -40,7 +40,7 @@ statichub login
 # Deploy to a named project
 statichub deploy ./dist --name my-app
 
-# Your site is live at https://my-app.statichub.io
+# Your site is live at https://my-app.statichub.dev
 ```
 
 ## Installation
@@ -390,4 +390,4 @@ Built with [Claude Code](https://claude.com/claude-code) by Anthropic.
 
 - **Issues**: [GitHub Issues](https://github.com/yourusername/statichub/issues)
 - **Documentation**: See `docs/` directory
-- **Email**: support@statichub.io
+- **Email**: support@statichub.dev

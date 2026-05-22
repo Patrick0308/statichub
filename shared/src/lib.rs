@@ -16,8 +16,8 @@ pub use types::*;
 /// assert_eq!(url, "https://my-app.localhost:3000");
 ///
 /// // Production
-/// let url = build_project_url("my-app", "https://statichub.io");
-/// assert_eq!(url, "https://my-app.statichub.io");
+/// let url = build_project_url("my-app", "https://statichub.dev");
+/// assert_eq!(url, "https://my-app.statichub.dev");
 /// ```
 pub fn build_project_url(subdomain: &str, base_url: &str) -> String {
     let domain = base_url
@@ -42,8 +42,8 @@ mod url_tests {
     #[test]
     fn test_build_project_url_production() {
         assert_eq!(
-            build_project_url("my-project", "https://statichub.io"),
-            "https://my-project.statichub.io"
+            build_project_url("my-project", "https://statichub.dev"),
+            "https://my-project.statichub.dev"
         );
     }
 
