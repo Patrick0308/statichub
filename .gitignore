@@ -21,6 +21,9 @@ Thumbs.db
 *.db-shm
 *.db-wal
 .statichub/
+server/.env
+server/storage/
 
 # Test artifacts
 /test-deploys/
+*.log
