@@ -64,11 +64,7 @@ jobs:
 
       - name: Install musl tools (Linux only)
         if: matrix.target == 'x86_64-unknown-linux-musl'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y musl-tools musl-dev
-          # Install OpenSSL for musl
-          sudo apt-get install -y pkg-config libssl-dev
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
 
       - name: Cache dependencies
         uses: Swatinem/rust-cache@v2
@@ -76,12 +72,13 @@ jobs:
           key: ${{ matrix.target }}
 
       - name: Build release binary
-        run: cargo build --release --target ${{ matrix.target }} -p statichub
-        env:
-          # Use vendored OpenSSL for musl builds
-          OPENSSL_STATIC: ${{ matrix.target == 'x86_64-unknown-linux-musl' && '1' || '' }}
-          OPENSSL_LIB_DIR: ${{ matrix.target == 'x86_64-unknown-linux-musl' && '/usr/lib/x86_64-linux-gnu' || '' }}
-          OPENSSL_INCLUDE_DIR: ${{ matrix.target == 'x86_64-unknown-linux-musl' && '/usr/include' || '' }}
+        run: |
+          if [ "${{ matrix.target }}" = "x86_64-unknown-linux-musl" ]; then
+            cargo build --release --target ${{ matrix.target }} -p statichub --features vendored-openssl
+          else
+            cargo build --release --target ${{ matrix.target }} -p statichub
+          fi
+        shell: bash
 
       - name: Strip binary (Linux and macOS only)
         if: matrix.os != 'windows-latest'
