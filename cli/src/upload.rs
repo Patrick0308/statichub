@@ -79,6 +79,7 @@ fn is_excluded(path: &Path, base_dir: &Path) -> bool {
 }
 
 /// Create a gzipped tarball from files
+#[allow(dead_code)]
 pub fn create_tarball(files: &[UploadFile]) -> Result<Vec<u8>> {
     use flate2::write::GzEncoder;
     use flate2::Compression;
