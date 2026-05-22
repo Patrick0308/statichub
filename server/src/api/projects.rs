@@ -7,7 +7,7 @@ use statichub_shared::{build_project_url, DeployResponse};
 
 use crate::{
     error::{AppError, Result},
-    middleware::AuthUser,
+    middleware::{AuthUser, RequestHost},
     models::{Deploy, Project},
     storage::Storage,
 };
@@ -19,8 +19,13 @@ pub async fn create_project_deploy(
     State(state): State<Arc<DeployState>>,
     Path(project_name): Path<String>,
     Extension(auth_user): Extension<AuthUser>,
+    axum::http::request::Parts { extensions, .. }: axum::http::request::Parts,
     mut multipart: Multipart,
 ) -> Result<Json<DeployResponse>> {
+    // Extract host from request
+    let request_host = extensions
+        .get::<RequestHost>()
+        .ok_or(AppError::MissingHost)?;
 
     // Validate project name before starting transaction
     validate_project_name(&project_name)?;
@@ -91,7 +96,7 @@ pub async fn create_project_deploy(
     Deploy::update_status(&state.pool, deploy.id, "ready", file_count, total_size as i64).await?;
 
     Ok(Json(DeployResponse {
-        url: build_project_url(&project.subdomain, &state.base_url),
+        url: build_project_url(&project.subdomain, &request_host.to_string()),
         subdomain: project.subdomain.clone(),
         version: Some(deploy.version),
         deploy_id: deploy.id,
