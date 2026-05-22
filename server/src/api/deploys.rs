@@ -1,5 +1,5 @@
 use axum::{
-    extract::{State, Multipart, Request as AxumRequest},
+    extract::{State, Multipart},
     Json,
 };
 use sqlx::SqlitePool;
