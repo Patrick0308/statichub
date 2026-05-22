@@ -2,7 +2,6 @@ use anyhow::{Context, Result};
 use statichub_shared::ProjectConfig;
 use std::path::{Path, PathBuf};
 
-#[allow(dead_code)]
 pub fn find_config_file(dir: &Path) -> Option<PathBuf> {
     let yaml_path = dir.join("statichub.yaml");
     if yaml_path.exists() {
@@ -17,7 +16,6 @@ pub fn find_config_file(dir: &Path) -> Option<PathBuf> {
     None
 }
 
-#[allow(dead_code)]
 pub fn load_config(path: &Path) -> Result<ProjectConfig> {
     let content = std::fs::read_to_string(path)
         .with_context(|| format!("Failed to read config file: {:?}", path))?;

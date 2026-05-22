@@ -24,6 +24,10 @@ enum Commands {
         /// Project name (requires login)
         #[arg(long)]
         name: Option<String>,
+
+        /// Path to config file (default: auto-detect statichub.yaml)
+        #[arg(long)]
+        config: Option<String>,
     },
 
     /// Login with Google OAuth
@@ -94,7 +98,7 @@ async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
     match cli.command {
-        Commands::Deploy { directory, name } => {
+        Commands::Deploy { directory, name, config: config_path } => {
             let dir = if let Some(d) = directory.as_ref() {
                 std::path::PathBuf::from(d)
             } else {
@@ -105,6 +109,17 @@ async fn main() -> anyhow::Result<()> {
             println!("📦 Collecting files from {}...", dir.display());
             let files = upload::collect_files(&dir)?;
             println!("   Found {} files", files.len());
+
+            // Load config if specified or auto-detect
+            let config = if let Some(path) = config_path {
+                let config_file = std::path::PathBuf::from(path);
+                Some(config::load_config(&config_file)?)
+            } else if let Some(found) = config::find_config_file(&dir) {
+                println!("   Using config: {}", found.display());
+                Some(config::load_config(&found)?)
+            } else {
+                None
+            };
 
             let server_url = std::env::var("STATICHUB_SERVER")
                 .unwrap_or_else(|_| "http://localhost:3000".to_string());
@@ -119,11 +134,11 @@ async fn main() -> anyhow::Result<()> {
                     ))?;
 
                 println!("🚀 Deploying to project '{}' on {}...", project_name, server_url);
-                client.deploy_authenticated(&project_name, &files, &credentials.access_token).await?
+                client.deploy_authenticated(&project_name, &files, &credentials.access_token, config.as_ref()).await?
             } else {
                 // Anonymous deploy
                 println!("🚀 Deploying to {}...", server_url);
-                client.deploy_anonymous(&files).await?
+                client.deploy_anonymous(&files, config.as_ref()).await?
             };
 
             println!("✅ Deploy successful!");

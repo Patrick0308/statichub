@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use reqwest::multipart::{Form, Part};
 use serde::Deserialize;
-use statichub_shared::DeployResponse;
+use statichub_shared::{DeployResponse, ProjectConfig};
 use crate::auth::{LoginRequest, LoginResponse, StatusResponse};
 
 #[derive(Debug, Deserialize)]
@@ -53,7 +53,11 @@ impl Client {
         }
     }
 
-    pub async fn deploy_anonymous(&self, files: &[crate::upload::UploadFile]) -> Result<DeployResponse> {
+    pub async fn deploy_anonymous(
+        &self,
+        files: &[crate::upload::UploadFile],
+        config: Option<&ProjectConfig>,
+    ) -> Result<DeployResponse> {
         let url = format!("{}/api/deploys/anonymous", self.base_url);
 
         let mut form = Form::new();
@@ -62,6 +66,13 @@ impl Client {
             let part = Part::bytes(file.content.clone())
                 .file_name(file.path.clone());
             form = form.part("files", part);
+        }
+
+        // Add config if provided
+        if let Some(cfg) = config {
+            let config_json = serde_json::to_string(cfg)
+                .context("Failed to serialize config")?;
+            form = form.text("config", config_json);
         }
 
         let response = self.client
@@ -90,6 +101,7 @@ impl Client {
         project_name: &str,
         files: &[crate::upload::UploadFile],
         token: &str,
+        config: Option<&ProjectConfig>,
     ) -> Result<DeployResponse> {
         let url = format!("{}/api/projects/{}/deploys", self.base_url, project_name);
 
@@ -99,6 +111,13 @@ impl Client {
             let part = Part::bytes(file.content.clone())
                 .file_name(file.path.clone());
             form = form.part("files", part);
+        }
+
+        // Add config if provided
+        if let Some(cfg) = config {
+            let config_json = serde_json::to_string(cfg)
+                .context("Failed to serialize config")?;
+            form = form.text("config", config_json);
         }
 
         let response = self.client

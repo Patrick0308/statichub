@@ -79,10 +79,11 @@ async fn process_multipart_files(
     while let Some(field) = multipart.next_field().await
         .map_err(|e| AppError::BadRequest(format!("Invalid multipart data: {}", e)))? {
 
-        // Get and validate filename
-        let filename = field.file_name()
-            .ok_or_else(|| AppError::BadRequest("Missing filename".to_string()))?
-            .to_string();
+        // Skip fields without filename (e.g., "config" text field)
+        let filename = match field.file_name() {
+            Some(name) => name.to_string(),
+            None => continue,
+        };
 
         let sanitized_filename = sanitize_filename(&filename)?;
 
