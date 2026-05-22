@@ -58,7 +58,7 @@ pub async fn serve_static_file(
         .get::<RequestHost>()
         .ok_or(AppError::MissingHost)?;
 
-    let base_domain = &request_host.to_string();
+    let base_domain = &request_host.base_domain;
 
     // Try custom domain first
     let project = if let Some(proj) = try_custom_domain(&hostname, base_domain, &state).await? {

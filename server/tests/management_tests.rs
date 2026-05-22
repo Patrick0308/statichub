@@ -1,6 +1,7 @@
 use axum::{
     body::Body,
     http::{Request, StatusCode},
+    middleware,
 };
 use serde_json::Value;
 use sqlx::SqlitePool;
@@ -8,17 +9,32 @@ use std::sync::Arc;
 use tower::ServiceExt;
 use statichub_server::{
     api::{AuthState, DeployState},
+    config::ServerConfig,
     create_router,
     models::{Deploy, Project, User},
     storage::FilesystemStorage,
 };
+
+fn create_test_router_with_middleware(
+    deploy_state: Arc<DeployState>,
+    auth_state: Arc<AuthState>,
+) -> axum::Router {
+    let config = ServerConfig {
+        port: 3000,
+        allowed_domains: vec!["localhost".to_string()],
+    };
+    create_router(deploy_state, auth_state)
+        .layer(middleware::from_fn_with_state(
+            config,
+            statichub_server::middleware::host_validation_middleware,
+        ))
+}
 
 #[sqlx::test]
 async fn test_list_projects(pool: SqlitePool) {
     let deploy_state = Arc::new(DeployState {
         pool: pool.clone(),
         storage: Arc::new(FilesystemStorage::new("./test_storage".into())),
-        base_url: "http://localhost:3000".to_string(),
     });
 
     let auth_state = Arc::new(
@@ -47,12 +63,13 @@ async fn test_list_projects(pool: SqlitePool) {
 
     let jwt = auth_state.generate_jwt(user.id, &user.email).unwrap();
 
-    let app = create_router(deploy_state, auth_state);
+    let app = create_test_router_with_middleware(deploy_state, auth_state);
 
     let response = app
         .oneshot(
             Request::builder()
                 .uri("/api/projects")
+                .header("host", "localhost:3000")
                 .header("authorization", format!("Bearer {}", jwt))
                 .body(Body::empty())
                 .unwrap(),
@@ -76,7 +93,6 @@ async fn test_get_project_info(pool: SqlitePool) {
     let deploy_state = Arc::new(DeployState {
         pool: pool.clone(),
         storage: Arc::new(FilesystemStorage::new("./test_storage".into())),
-        base_url: "http://localhost:3000".to_string(),
     });
 
     let auth_state = Arc::new(
@@ -105,12 +121,13 @@ async fn test_get_project_info(pool: SqlitePool) {
 
     let jwt = auth_state.generate_jwt(user.id, &user.email).unwrap();
 
-    let app = create_router(deploy_state, auth_state);
+    let app = create_test_router_with_middleware(deploy_state, auth_state);
 
     let response = app
         .oneshot(
             Request::builder()
                 .uri("/api/projects/myapp")
+                .header("host", "localhost:3000")
                 .header("authorization", format!("Bearer {}", jwt))
                 .body(Body::empty())
                 .unwrap(),
@@ -135,7 +152,6 @@ async fn test_rollback_project(pool: SqlitePool) {
     let deploy_state = Arc::new(DeployState {
         pool: pool.clone(),
         storage: Arc::new(FilesystemStorage::new("./test_storage".into())),
-        base_url: "http://localhost:3000".to_string(),
     });
 
     let auth_state = Arc::new(
@@ -175,7 +191,7 @@ async fn test_rollback_project(pool: SqlitePool) {
 
     let jwt = auth_state.generate_jwt(user.id, &user.email).unwrap();
 
-    let app = create_router(deploy_state, auth_state);
+    let app = create_test_router_with_middleware(deploy_state, auth_state);
 
     // Rollback to version 1
     let response = app
@@ -183,6 +199,7 @@ async fn test_rollback_project(pool: SqlitePool) {
             Request::builder()
                 .uri("/api/projects/myapp/rollback")
                 .method("POST")
+                .header("host", "localhost:3000")
                 .header("authorization", format!("Bearer {}", jwt))
                 .header("content-type", "application/json")
                 .body(Body::from(r#"{"version": 1}"#))

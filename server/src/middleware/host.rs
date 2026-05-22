@@ -10,6 +10,7 @@ use crate::{config::{parse_host, ServerConfig}, error::{AppError, Result}};
 pub struct RequestHost {
     pub domain: String,
     pub port: Option<u16>,
+    pub base_domain: String,
 }
 
 impl RequestHost {
@@ -46,8 +47,15 @@ pub async fn host_validation_middleware(
         )));
     }
 
+    // Extract base domain from the configuration
+    let base_domain = config.extract_base_domain(&domain)
+        .ok_or_else(|| AppError::InvalidHost(format!(
+            "Could not determine base domain for: {}",
+            domain
+        )))?;
+
     // Attach to request extensions
-    let request_host = RequestHost { domain, port };
+    let request_host = RequestHost { domain, port, base_domain };
     req.extensions_mut().insert(request_host);
 
     Ok(next.run(req).await)
@@ -62,6 +70,7 @@ mod tests {
         let host = RequestHost {
             domain: "localhost".to_string(),
             port: Some(3000),
+            base_domain: "localhost".to_string(),
         };
         assert_eq!(host.to_string(), "localhost:3000");
     }
@@ -71,6 +80,7 @@ mod tests {
         let host = RequestHost {
             domain: "statichub.dev".to_string(),
             port: None,
+            base_domain: "statichub.dev".to_string(),
         };
         assert_eq!(host.to_string(), "statichub.dev");
     }

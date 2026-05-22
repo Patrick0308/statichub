@@ -1,10 +1,26 @@
 use axum::{
     body::Body,
     http::{Request, StatusCode},
+    middleware,
 };
-use statichub_server::{api, create_router, db, models, storage};
+use statichub_server::{api, config::ServerConfig, create_router, models, storage};
 use std::sync::Arc;
 use tower::ServiceExt;
+
+fn create_test_router_with_middleware(
+    deploy_state: Arc<api::DeployState>,
+    auth_state: Arc<api::AuthState>,
+) -> axum::Router {
+    let config = ServerConfig {
+        port: 3000,
+        allowed_domains: vec!["localhost".to_string()],
+    };
+    create_router(deploy_state, auth_state)
+        .layer(middleware::from_fn_with_state(
+            config,
+            statichub_server::middleware::host_validation_middleware,
+        ))
+}
 
 #[tokio::test]
 async fn test_authenticated_deploy_creates_new_project() {
@@ -22,7 +38,6 @@ async fn test_authenticated_deploy_creates_new_project() {
     let deploy_state = Arc::new(api::DeployState {
         pool: pool.clone(),
         storage: storage.clone(),
-        base_url: "http://localhost:3000".to_string(),
     });
 
     let auth_state = Arc::new(
@@ -36,7 +51,7 @@ async fn test_authenticated_deploy_creates_new_project() {
         .unwrap(),
     );
 
-    let app = create_router(deploy_state, auth_state.clone());
+    let app = create_test_router_with_middleware(deploy_state, auth_state.clone());
 
     // Generate JWT
     let jwt = auth_state.generate_jwt(user.id, &user.email).unwrap();
@@ -51,6 +66,7 @@ async fn test_authenticated_deploy_creates_new_project() {
     let request = Request::builder()
         .method("POST")
         .uri("/api/projects/my-test-app/deploys")
+        .header("host", "localhost:3000")
         .header("authorization", format!("Bearer {}", jwt))
         .header(
             "content-type",
@@ -93,7 +109,6 @@ async fn test_authenticated_deploy_requires_jwt() {
     let deploy_state = Arc::new(api::DeployState {
         pool: pool.clone(),
         storage: storage.clone(),
-        base_url: "http://localhost:3000".to_string(),
     });
 
     let auth_state = Arc::new(
@@ -119,6 +134,7 @@ async fn test_authenticated_deploy_requires_jwt() {
     let request = Request::builder()
         .method("POST")
         .uri("/api/projects/my-test-app/deploys")
+        .header("host", "localhost:3000")
         .header(
             "content-type",
             format!("multipart/form-data; boundary={}", boundary),
@@ -144,7 +160,6 @@ async fn test_authenticated_deploy_validates_project_name() {
     let deploy_state = Arc::new(api::DeployState {
         pool: pool.clone(),
         storage: storage.clone(),
-        base_url: "http://localhost:3000".to_string(),
     });
 
     let auth_state = Arc::new(
@@ -158,7 +173,7 @@ async fn test_authenticated_deploy_validates_project_name() {
         .unwrap(),
     );
 
-    let app = create_router(deploy_state, auth_state.clone());
+    let app = create_test_router_with_middleware(deploy_state, auth_state.clone());
 
     let jwt = auth_state.generate_jwt(user.id, &user.email).unwrap();
 
@@ -172,6 +187,7 @@ async fn test_authenticated_deploy_validates_project_name() {
     let request = Request::builder()
         .method("POST")
         .uri("/api/projects/MyApp/deploys")
+        .header("host", "localhost:3000")
         .header("authorization", format!("Bearer {}", jwt))
         .header(
             "content-type",
@@ -207,7 +223,6 @@ async fn test_authenticated_deploy_enforces_ownership() {
     let deploy_state = Arc::new(api::DeployState {
         pool: pool.clone(),
         storage: storage.clone(),
-        base_url: "http://localhost:3000".to_string(),
     });
 
     let auth_state = Arc::new(
@@ -221,7 +236,7 @@ async fn test_authenticated_deploy_enforces_ownership() {
         .unwrap(),
     );
 
-    let app = create_router(deploy_state, auth_state.clone());
+    let app = create_test_router_with_middleware(deploy_state, auth_state.clone());
 
     // Try to deploy to user1's project as user2
     let jwt = auth_state.generate_jwt(user2.id, &user2.email).unwrap();
@@ -235,6 +250,7 @@ async fn test_authenticated_deploy_enforces_ownership() {
     let request = Request::builder()
         .method("POST")
         .uri("/api/projects/user1-project/deploys")
+        .header("host", "localhost:3000")
         .header("authorization", format!("Bearer {}", jwt))
         .header(
             "content-type",
@@ -261,7 +277,6 @@ async fn test_authenticated_deploy_increments_version() {
     let deploy_state = Arc::new(api::DeployState {
         pool: pool.clone(),
         storage: storage.clone(),
-        base_url: "http://localhost:3000".to_string(),
     });
 
     let auth_state = Arc::new(
@@ -284,13 +299,14 @@ async fn test_authenticated_deploy_increments_version() {
     );
 
     // First deploy
-    let app1 = create_router(
+    let app1 = create_test_router_with_middleware(
         deploy_state.clone(),
         auth_state.clone(),
     );
     let request1 = Request::builder()
         .method("POST")
         .uri("/api/projects/versioned-app/deploys")
+        .header("host", "localhost:3000")
         .header("authorization", format!("Bearer {}", jwt))
         .header(
             "content-type",
@@ -308,10 +324,11 @@ async fn test_authenticated_deploy_increments_version() {
     assert_eq!(deploy1.version, Some(1));
 
     // Second deploy
-    let app2 = create_router(deploy_state, auth_state.clone());
+    let app2 = create_test_router_with_middleware(deploy_state, auth_state.clone());
     let request2 = Request::builder()
         .method("POST")
         .uri("/api/projects/versioned-app/deploys")
+        .header("host", "localhost:3000")
         .header("authorization", format!("Bearer {}", jwt))
         .header(
             "content-type",

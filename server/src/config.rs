@@ -47,7 +47,33 @@ impl ServerConfig {
     }
 
     pub fn is_allowed(&self, domain: &str) -> bool {
-        self.allowed_domains.iter().any(|d| d == domain)
+        self.allowed_domains.iter().any(|d| {
+            if d.starts_with("*.") {
+                // Wildcard match: *.example.com matches foo.example.com
+                // Must have at least one character before the base domain
+                let base = &d[1..]; // Remove "*" to get ".example.com"
+                domain.ends_with(base) && domain.len() > base.len()
+            } else {
+                d == domain
+            }
+        })
+    }
+
+    /// Extract the base domain from a hostname based on allowed domains
+    /// For example, given "app.statichub.io" and allowed_domains ["*.statichub.io"],
+    /// returns "statichub.io"
+    pub fn extract_base_domain(&self, hostname: &str) -> Option<String> {
+        for allowed in &self.allowed_domains {
+            if allowed.starts_with("*.") {
+                let base = &allowed[2..]; // Remove "*." to get "example.com"
+                if hostname.ends_with(&format!(".{}", base)) {
+                    return Some(base.to_string());
+                }
+            } else if allowed == hostname {
+                return Some(hostname.to_string());
+            }
+        }
+        None
     }
 }
 
@@ -195,5 +221,29 @@ mod config_tests {
         };
         assert!(!config.is_allowed("malicious.com"));
         assert!(!config.is_allowed("statichub.dev"));
+    }
+
+    #[test]
+    fn test_wildcard_subdomain_positive() {
+        let config = ServerConfig {
+            port: 3000,
+            allowed_domains: vec!["*.example.com".to_string()],
+        };
+        assert!(config.is_allowed("foo.example.com"));
+        assert!(config.is_allowed("bar.example.com"));
+        assert!(config.is_allowed("test-123.example.com"));
+    }
+
+    #[test]
+    fn test_wildcard_subdomain_negative() {
+        let config = ServerConfig {
+            port: 3000,
+            allowed_domains: vec!["*.example.com".to_string()],
+        };
+        // Base domain should not match wildcard
+        assert!(!config.is_allowed("example.com"));
+        // Different domain should not match
+        assert!(!config.is_allowed("example.org"));
+        assert!(!config.is_allowed("foo.example.org"));
     }
 }

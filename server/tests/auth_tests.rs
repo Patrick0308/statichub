@@ -14,7 +14,6 @@ async fn test_login_initiation(pool: SqlitePool) {
     let deploy_state = Arc::new(DeployState {
         pool: pool.clone(),
         storage: Arc::new(FilesystemStorage::new("./test_storage".into())),
-        base_url: "http://localhost:3000".to_string(),
     });
 
     let auth_state = Arc::new(
@@ -58,7 +57,6 @@ async fn test_auth_status_not_ready(pool: SqlitePool) {
     let deploy_state = Arc::new(DeployState {
         pool: pool.clone(),
         storage: Arc::new(FilesystemStorage::new("./test_storage".into())),
-        base_url: "http://localhost:3000".to_string(),
     });
 
     let auth_state = Arc::new(
@@ -99,7 +97,6 @@ async fn test_auth_status_after_login(pool: SqlitePool) {
     let deploy_state = Arc::new(DeployState {
         pool: pool.clone(),
         storage: Arc::new(FilesystemStorage::new("./test_storage".into())),
-        base_url: "http://localhost:3000".to_string(),
     });
 
     let auth_state = Arc::new(
@@ -159,7 +156,6 @@ async fn test_duplicate_session_id_returns_conflict(pool: SqlitePool) {
     let deploy_state = Arc::new(DeployState {
         pool: pool.clone(),
         storage: Arc::new(FilesystemStorage::new("./test_storage".into())),
-        base_url: "http://localhost:3000".to_string(),
     });
 
     let auth_state = Arc::new(

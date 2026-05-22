@@ -18,7 +18,6 @@ async fn test_add_domain(pool: SqlitePool) {
     let deploy_state = Arc::new(DeployState {
         pool: pool.clone(),
         storage: Arc::new(FilesystemStorage::new("./test_storage".into())),
-        base_url: "http://localhost:3000".to_string(),
     });
 
     let auth_state = Arc::new(
@@ -74,7 +73,6 @@ async fn test_list_domains(pool: SqlitePool) {
     let deploy_state = Arc::new(DeployState {
         pool: pool.clone(),
         storage: Arc::new(FilesystemStorage::new("./test_storage".into())),
-        base_url: "http://localhost:3000".to_string(),
     });
 
     let auth_state = Arc::new(
@@ -140,7 +138,6 @@ async fn test_verify_domain_success(pool: SqlitePool) {
     let deploy_state = Arc::new(DeployState {
         pool: pool.clone(),
         storage: storage.clone(),
-        base_url: "http://localhost:3000".to_string(),
     });
 
     let auth_state = Arc::new(
@@ -222,7 +219,6 @@ async fn test_remove_domain(pool: SqlitePool) {
     let deploy_state = Arc::new(DeployState {
         pool: pool.clone(),
         storage: Arc::new(FilesystemStorage::new("./test_storage".into())),
-        base_url: "http://localhost:3000".to_string(),
     });
 
     let auth_state = Arc::new(
