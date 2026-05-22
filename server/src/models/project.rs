@@ -17,8 +17,11 @@ pub struct Project {
 impl Project {
     pub async fn create_anonymous(
         pool: &SqlitePool,
-        subdomain: &str,
+        identifier: &str,
     ) -> Result<Project, sqlx::Error> {
+        let subdomain = identifier; // Store identifier only, no domain suffix
+        let name = identifier;
+
         let project = sqlx::query_as::<_, Project>(
             r#"
             INSERT INTO projects (name, subdomain, is_anonymous)
@@ -26,8 +29,8 @@ impl Project {
             RETURNING *
             "#,
         )
-        .bind(subdomain)
-        .bind(subdomain)
+        .bind(&name)
+        .bind(&subdomain)
         .fetch_one(pool)
         .await?;
 
