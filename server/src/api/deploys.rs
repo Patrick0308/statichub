@@ -1,11 +1,11 @@
 use axum::{
-    extract::{State, Multipart},
+    extract::{State, Multipart, Request as AxumRequest},
     Json,
 };
 use sqlx::SqlitePool;
 use std::sync::Arc;
 use statichub_shared::{DeployResponse, build_project_url};
-use crate::{error::{Result, AppError}, storage::Storage, models::{Project, Deploy}};
+use crate::{error::{Result, AppError}, storage::Storage, models::{Project, Deploy}, middleware::RequestHost};
 
 pub struct DeployState {
     pub pool: SqlitePool,
@@ -14,8 +14,14 @@ pub struct DeployState {
 
 pub async fn create_anonymous_deploy(
     State(state): State<Arc<DeployState>>,
+    axum::http::request::Parts { extensions, .. }: axum::http::request::Parts,
     mut multipart: Multipart,
 ) -> Result<Json<DeployResponse>> {
+    // Extract host from request
+    let request_host = extensions
+        .get::<RequestHost>()
+        .ok_or(AppError::MissingHost)?;
+
     // Create anonymous project
     let project = Project::create_anonymous(&state.pool, None).await?;
     let subdomain = project.subdomain.clone();
@@ -54,7 +60,7 @@ pub async fn create_anonymous_deploy(
         .await?;
 
     Ok(Json(DeployResponse {
-        url: build_project_url(&project.subdomain, &state.base_url),
+        url: build_project_url(&project.subdomain, &request_host.to_string()),
         subdomain: project.subdomain.clone(),
         version: None,
         deploy_id: deploy.id,
