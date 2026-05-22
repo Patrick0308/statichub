@@ -1,4 +1,4 @@
-use statichub_server::{db, storage, api, create_router, cli};
+use statichub_server::{db, storage, api, create_router, cli, config::ServerConfig};
 use clap::Parser;
 use std::{net::SocketAddr, sync::Arc, io::Write};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -20,22 +20,22 @@ async fn main() -> anyhow::Result<()> {
     let cli = cli::Cli::parse();
 
     match cli.command {
-        Some(cli::Commands::Serve { port }) => {
-            serve(port).await?;
+        Some(cli::Commands::Serve { port: _ }) => {
+            serve().await?;
         }
         Some(cli::Commands::Db { command }) => {
             handle_db_command(command).await?;
         }
         None => {
             // Default: serve
-            serve(3000).await?;
+            serve().await?;
         }
     }
 
     Ok(())
 }
 
-async fn serve(port: u16) -> anyhow::Result<()> {
+async fn serve() -> anyhow::Result<()> {
     let database_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "sqlite:statichub.db".to_string());
 
@@ -75,6 +75,12 @@ async fn serve(port: u16) -> anyhow::Result<()> {
 
     tracing::info!("✓ Database connected and migrations up to date");
 
+    // Load configuration
+    let config = ServerConfig::from_env()?;
+    tracing::info!("✓ Configuration loaded:");
+    tracing::info!("  Port: {}", config.port);
+    tracing::info!("  Allowed domains: {:?}", config.allowed_domains);
+
     // Storage setup
     let storage_path = std::env::var("STORAGE_PATH")
         .unwrap_or_else(|_| "./var/statichub/deploys".to_string());
@@ -100,9 +106,13 @@ async fn serve(port: u16) -> anyhow::Result<()> {
     )?);
 
     // Build router
-    let app = create_router(deploy_state, auth_state);
+    let app = create_router(deploy_state, auth_state)
+        .layer(axum::middleware::from_fn_with_state(
+            config.clone(),
+            statichub_server::middleware::host_validation_middleware,
+        ));
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], port));
+    let addr = SocketAddr::from(([0, 0, 0, 0], config.port));
     tracing::info!("🚀 Server listening on {}", addr);
 
     let listener = tokio::net::TcpListener::bind(addr).await?;
