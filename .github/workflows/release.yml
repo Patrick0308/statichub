@@ -92,7 +92,7 @@ jobs:
         if: matrix.os != 'windows-latest'
         run: |
           cd target/${{ matrix.target }}/release
-          tar czf ../../../${{ matrix.asset_name }}-${{ env.VERSION }}.tar.gz ${{ matrix.artifact_name }}
+          tar czf ../../../${{ matrix.asset_name }}.tar.gz ${{ matrix.artifact_name }}
           cd ../../..
 
       - name: Create zip (Windows)
@@ -100,16 +100,16 @@ jobs:
         shell: bash
         run: |
           cd target/${{ matrix.target }}/release
-          7z a ../../../${{ matrix.asset_name }}-${{ env.VERSION }}.zip ${{ matrix.artifact_name }}
+          7z a ../../../${{ matrix.asset_name }}.zip ${{ matrix.artifact_name }}
           cd ../../..
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.asset_name }}-${{ env.VERSION }}
+          name: ${{ matrix.asset_name }}
           path: |
-            ${{ matrix.asset_name }}-${{ env.VERSION }}.tar.gz
-            ${{ matrix.asset_name }}-${{ env.VERSION }}.zip
+            ${{ matrix.asset_name }}.tar.gz
+            ${{ matrix.asset_name }}.zip
           if-no-files-found: ignore
 
   release:
