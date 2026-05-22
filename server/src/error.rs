@@ -30,6 +30,15 @@ pub enum AppError {
 
     #[error("Internal server error: {0}")]
     Internal(String),
+
+    #[error("Invalid host header: {0}")]
+    InvalidHost(String),
+
+    #[error("Domain not allowed: {0}")]
+    DomainNotAllowed(String),
+
+    #[error("Missing host information in request")]
+    MissingHost,
 }
 
 impl IntoResponse for AppError {
@@ -61,6 +70,16 @@ impl IntoResponse for AppError {
             AppError::Internal(msg) => {
                 tracing::error!("Internal error: {}", msg);
                 (StatusCode::INTERNAL_SERVER_ERROR, "internal_error", msg)
+            }
+            AppError::InvalidHost(msg) => {
+                (StatusCode::BAD_REQUEST, "invalid_host", msg)
+            }
+            AppError::DomainNotAllowed(msg) => {
+                (StatusCode::FORBIDDEN, "domain_not_allowed", msg)
+            }
+            AppError::MissingHost => {
+                (StatusCode::INTERNAL_SERVER_ERROR, "missing_host",
+                 "Host information not found in request".to_string())
             }
         };
 
