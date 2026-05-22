@@ -106,13 +106,43 @@ cargo build --release -p statichub
 # Set up environment variables
 cp server/.env.example server/.env
 # Edit .env with your configuration
+```
 
+**Configure environment variables in `.env`:**
+
+- `PORT` - Server listening port (default: 3000)
+- `ALLOWED_DOMAINS` - Comma-separated list of domains the server accepts (default: localhost,statichub.dev)
+- `DATABASE_URL` - SQLite database path (default: sqlite:statichub.db)
+- `STORAGE_PATH` - Path for deployment storage (default: ~/.statichub/deploys)
+- `GOOGLE_CLIENT_ID` - Google OAuth client ID
+- `GOOGLE_CLIENT_SECRET` - Google OAuth client secret
+- `GOOGLE_REDIRECT_URL` - OAuth callback URL (must match PORT, e.g., http://localhost:3000/auth/callback/google)
+- `JWT_SECRET` - Secret key for JWT token signing (use a long random string)
+
+**Multi-domain setup:**
+
+The server can serve multiple domains. Each domain in `ALLOWED_DOMAINS` will:
+- Accept deployments via CLI (using `STATICHUB_SERVER` environment variable)
+- Serve static content based on hostname routing
+- Support custom domain mappings
+
+Example for production:
+```bash
+PORT=80
+ALLOWED_DOMAINS=statichub.dev,statichub.com,localhost
+```
+
+**Start the server:**
+
+```bash
 # Initialize database (first time only)
 statichub-server db init
 
 # Start the server
 statichub-server serve
-# Or specify port: statichub-server serve --port 8080
+
+# The server listens on the PORT specified in .env
+# and accepts requests for all domains in ALLOWED_DOMAINS
 ```
 
 **Database management commands:**
@@ -319,14 +349,47 @@ cargo test test_add_domain
 
 **Server:**
 - `DATABASE_URL` - SQLite database path (default: `sqlite:statichub.db`)
-- `BASE_URL` - Base URL for the server (default: `http://localhost:3000`)
+- `PORT` - Server listening port (default: `3000`)
+- `ALLOWED_DOMAINS` - Comma-separated list of allowed domains (default: `localhost,statichub.dev`)
+- `STORAGE_PATH` - Path for deployment storage (default: `~/.statichub/deploys`)
 - `GOOGLE_CLIENT_ID` - Google OAuth client ID
 - `GOOGLE_CLIENT_SECRET` - Google OAuth client secret
+- `GOOGLE_REDIRECT_URL` - OAuth callback URL (must match your PORT)
 - `JWT_SECRET` - Secret key for JWT token signing
-- `STORAGE_PATH` - Path for file storage (default: `./storage`)
 
 **CLI:**
-- `STATICHUB_SERVER` - Server URL (default: `http://localhost:3000`)
+- `STATICHUB_SERVER` - Server URL (default: `http://statichub.dev`)
+
+**Multi-domain Configuration:**
+
+The server uses `PORT` and `ALLOWED_DOMAINS` instead of a single `BASE_URL`. This allows:
+- Serving multiple domains from one server instance
+- Flexible deployment across different environments
+- Hostname-based routing for static content
+
+Example configurations:
+
+**Development:**
+```bash
+# Server .env
+PORT=3000
+ALLOWED_DOMAINS=localhost,statichub.dev
+
+# CLI environment
+export STATICHUB_SERVER=http://localhost:3000
+```
+
+**Production:**
+```bash
+# Server .env
+PORT=80
+ALLOWED_DOMAINS=statichub.dev,statichub.com
+
+# CLI environment (users point to their preferred domain)
+export STATICHUB_SERVER=http://statichub.dev
+```
+
+The CLI's `STATICHUB_SERVER` should point to any domain in the server's `ALLOWED_DOMAINS` list.
 
 ### Database Migrations
 
