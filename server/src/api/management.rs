@@ -10,6 +10,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use statichub_shared::build_project_url;
 
 #[derive(Debug, Serialize)]
 pub struct ProjectListItem {
@@ -66,25 +67,11 @@ pub async fn list_projects(
                 None
             };
 
-            // subdomain is already stored with full domain for owned projects
-            // e.g., "myapp.statichub.io" or just "x7k2m9" for anonymous
-            let full_subdomain = if p.is_anonymous {
-                // For anonymous projects, append base domain
-                let base_domain = state
-                    .base_url
-                    .replace("http://", "")
-                    .replace("https://", "");
-                format!("{}.{}", p.subdomain, base_domain)
-            } else {
-                // For owned projects, subdomain already contains full domain
-                p.subdomain.clone()
-            };
-
             ProjectListItem {
                 id: p.id,
                 name: p.name.clone(),
-                subdomain: full_subdomain.clone(),
-                url: format!("https://{}", full_subdomain),
+                subdomain: p.subdomain.clone(),
+                url: build_project_url(&p.subdomain, &state.base_url),
                 current_version,
                 last_deployed_at: Some(p.last_deployed_at.to_string()),
                 created_at: p.created_at.to_string(),
@@ -126,25 +113,11 @@ pub async fn get_project_info(
         })
         .collect();
 
-    // subdomain is already stored with full domain for owned projects
-    // e.g., "myapp.statichub.io" or just "x7k2m9" for anonymous
-    let full_subdomain = if project.is_anonymous {
-        // For anonymous projects, append base domain
-        let base_domain = state
-            .base_url
-            .replace("http://", "")
-            .replace("https://", "");
-        format!("{}.{}", project.subdomain, base_domain)
-    } else {
-        // For owned projects, subdomain already contains full domain
-        project.subdomain.clone()
-    };
-
     Ok(Json(ProjectDetail {
         id: project.id,
         name: project.name.clone(),
-        subdomain: full_subdomain.clone(),
-        url: format!("https://{}", full_subdomain),
+        subdomain: project.subdomain.clone(),
+        url: build_project_url(&project.subdomain, &state.base_url),
         current_version: deploy_infos
             .iter()
             .find(|d| d.is_current)
