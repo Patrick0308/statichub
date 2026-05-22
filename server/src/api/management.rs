@@ -186,39 +186,4 @@ mod tests {
         assert!(json.contains("\"version\":1"));
         assert!(json.contains("\"is_current\":true"));
     }
-
-    #[test]
-    fn test_subdomain_construction_for_owned_projects() {
-        // Owned projects store subdomain as "myapp.statichub.io"
-        // Should NOT append base_domain again
-        let subdomain = "myapp.statichub.io";
-        let is_anonymous = false;
-
-        // Simulate the logic from list_projects
-        let full_subdomain = if is_anonymous {
-            format!("{}.{}", subdomain, "localhost:3000")
-        } else {
-            subdomain.to_string()
-        };
-
-        assert_eq!(full_subdomain, "myapp.statichub.io");
-        assert!(!full_subdomain.contains("localhost"));
-    }
-
-    #[test]
-    fn test_subdomain_construction_for_anonymous_projects() {
-        // Anonymous projects store subdomain as just "x7k2m9"
-        // Should append base_domain
-        let subdomain = "x7k2m9";
-        let is_anonymous = true;
-
-        // Simulate the logic from list_projects
-        let full_subdomain = if is_anonymous {
-            format!("{}.{}", subdomain, "localhost:3000")
-        } else {
-            subdomain.to_string()
-        };
-
-        assert_eq!(full_subdomain, "x7k2m9.localhost:3000");
-    }
 }
