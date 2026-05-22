@@ -4,27 +4,23 @@ pub mod types;
 
 pub use types::*;
 
-/// Build full project URL from subdomain identifier and base URL
+/// Build full project URL from subdomain and host
 ///
 /// # Examples
 ///
 /// ```
 /// use statichub_shared::build_project_url;
 ///
-/// // Development
-/// let url = build_project_url("my-app", "http://localhost:3000");
-/// assert_eq!(url, "https://my-app.localhost:3000");
+/// // With port
+/// let url = build_project_url("my-app", "localhost:3000");
+/// assert_eq!(url, "http://my-app.localhost:3000");
 ///
-/// // Production
-/// let url = build_project_url("my-app", "https://statichub.dev");
-/// assert_eq!(url, "https://my-app.statichub.dev");
+/// // Without port
+/// let url = build_project_url("my-app", "statichub.dev");
+/// assert_eq!(url, "http://my-app.statichub.dev");
 /// ```
-pub fn build_project_url(subdomain: &str, base_url: &str) -> String {
-    let domain = base_url
-        .trim_start_matches("http://")
-        .trim_start_matches("https://");
-
-    format!("https://{}.{}", subdomain, domain)
+pub fn build_project_url(subdomain: &str, host: &str) -> String {
+    format!("http://{}.{}", subdomain, host)
 }
 
 #[cfg(test)]
@@ -32,34 +28,26 @@ mod url_tests {
     use super::*;
 
     #[test]
-    fn test_build_project_url_localhost() {
+    fn test_build_project_url_localhost_with_port() {
         assert_eq!(
-            build_project_url("test-app", "http://localhost:3000"),
-            "https://test-app.localhost:3000"
+            build_project_url("test-app", "localhost:3000"),
+            "http://test-app.localhost:3000"
         );
     }
 
     #[test]
-    fn test_build_project_url_production() {
+    fn test_build_project_url_without_port() {
         assert_eq!(
-            build_project_url("my-project", "https://statichub.dev"),
-            "https://my-project.statichub.dev"
+            build_project_url("my-project", "statichub.dev"),
+            "http://my-project.statichub.dev"
         );
     }
 
     #[test]
-    fn test_build_project_url_custom_domain() {
+    fn test_build_project_url_custom_domain_with_port() {
         assert_eq!(
-            build_project_url("app", "https://custom.com"),
-            "https://app.custom.com"
-        );
-    }
-
-    #[test]
-    fn test_build_project_url_with_http_prefix() {
-        assert_eq!(
-            build_project_url("app", "http://example.org"),
-            "https://app.example.org"
+            build_project_url("app", "example.com:8080"),
+            "http://app.example.com:8080"
         );
     }
 }
