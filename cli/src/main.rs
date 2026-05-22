@@ -122,7 +122,7 @@ async fn main() -> anyhow::Result<()> {
             };
 
             let server_url = std::env::var("STATICHUB_SERVER")
-                .unwrap_or_else(|_| "http://localhost:3000".to_string());
+                .unwrap_or_else(|_| "http://statichub.dev".to_string());
 
             let client = client::Client::new(server_url.clone());
 
@@ -150,7 +150,7 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Login => {
             let server_url = std::env::var("STATICHUB_SERVER")
-                .unwrap_or_else(|_| "http://localhost:3000".to_string());
+                .unwrap_or_else(|_| "http://statichub.dev".to_string());
 
             println!("🔐 Logging in to StaticHub...");
 
@@ -219,7 +219,7 @@ async fn main() -> anyhow::Result<()> {
                 .ok_or_else(|| anyhow::anyhow!("Not logged in. Run 'statichub login' first."))?;
 
             let server_url = std::env::var("STATICHUB_SERVER")
-                .unwrap_or_else(|_| "http://localhost:3000".to_string());
+                .unwrap_or_else(|_| "http://statichub.dev".to_string());
 
             let client = client::Client::new(server_url);
             let projects = client.list_projects(&credentials.access_token).await?;
@@ -246,7 +246,7 @@ async fn main() -> anyhow::Result<()> {
                 .ok_or_else(|| anyhow::anyhow!("Not logged in. Run 'statichub login' first."))?;
 
             let server_url = std::env::var("STATICHUB_SERVER")
-                .unwrap_or_else(|_| "http://localhost:3000".to_string());
+                .unwrap_or_else(|_| "http://statichub.dev".to_string());
 
             let client = client::Client::new(server_url);
             let info = client.get_project_info(&project, &credentials.access_token).await?;
@@ -276,7 +276,7 @@ async fn main() -> anyhow::Result<()> {
                 .ok_or_else(|| anyhow::anyhow!("Not logged in. Run 'statichub login' first."))?;
 
             let server_url = std::env::var("STATICHUB_SERVER")
-                .unwrap_or_else(|_| "http://localhost:3000".to_string());
+                .unwrap_or_else(|_| "http://statichub.dev".to_string());
 
             println!("🔄 Rolling back {} to version {}...", project, version);
 
@@ -294,7 +294,7 @@ async fn main() -> anyhow::Result<()> {
                 .ok_or_else(|| anyhow::anyhow!("Not logged in. Run 'statichub login' first."))?;
 
             let server_url = std::env::var("STATICHUB_SERVER")
-                .unwrap_or_else(|_| "http://localhost:3000".to_string());
+                .unwrap_or_else(|_| "http://statichub.dev".to_string());
 
             let client = client::Client::new(server_url);
 
