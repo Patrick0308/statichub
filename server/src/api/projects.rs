@@ -3,7 +3,7 @@ use axum::{
     Extension, Json,
 };
 use std::sync::Arc;
-use statichub_shared::DeployResponse;
+use statichub_shared::{build_project_url, DeployResponse};
 
 use crate::{
     error::{AppError, Result},
@@ -90,11 +90,9 @@ pub async fn create_project_deploy(
     // Update deploy status
     Deploy::update_status(&state.pool, deploy.id, "ready", file_count, total_size as i64).await?;
 
-    let subdomain = format!("{}.statichub.io", project_name);
-
     Ok(Json(DeployResponse {
-        url: format!("https://{}", subdomain),
-        subdomain,
+        url: build_project_url(&project.subdomain, &state.base_url),
+        subdomain: project.subdomain.clone(),
         version: Some(deploy.version),
         deploy_id: deploy.id,
         project_id: Some(project.id),
