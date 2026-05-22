@@ -17,11 +17,9 @@ pub async fn create_anonymous_deploy(
     State(state): State<Arc<DeployState>>,
     mut multipart: Multipart,
 ) -> Result<Json<DeployResponse>> {
-    // Generate random subdomain
-    let subdomain = generate_random_subdomain();
-
     // Create anonymous project
-    let project = Project::create_anonymous(&state.pool, &subdomain).await?;
+    let project = Project::create_anonymous(&state.pool, None).await?;
+    let subdomain = project.subdomain.clone();
 
     // Create deploy record
     let storage_path = format!("{}/deploy-1", subdomain);
@@ -159,30 +157,6 @@ fn sanitize_filename(filename: &str) -> Result<String> {
     Ok(normalized)
 }
 
-fn generate_random_subdomain() -> String {
-    use rand::Rng;
-    const CHARSET: &[u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
-    let mut rng = rand::thread_rng();
-
-    (0..6)
-        .map(|_| {
-            let idx = rng.gen_range(0..CHARSET.len());
-            CHARSET[idx] as char
-        })
-        .collect()
-}
-
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn test_generate_random_subdomain() {
-        let sub1 = generate_random_subdomain();
-        let sub2 = generate_random_subdomain();
-
-        assert_eq!(sub1.len(), 6);
-        assert_ne!(sub1, sub2); // Likely different
-        assert!(sub1.chars().all(|c| c.is_ascii_alphanumeric()));
-    }
 }

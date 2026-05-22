@@ -29,9 +29,8 @@ fn create_test_auth_state(pool: SqlitePool) -> Arc<AuthState> {
 async fn test_serve_index_html(pool: SqlitePool) {
     let temp_dir = tempfile::tempdir().unwrap();
     let storage = Arc::new(FilesystemStorage::new(temp_dir.path().to_path_buf()));
-    let project = Project::create_anonymous(&pool, None).await.unwrap();
-    let storage_path = format!("{}/deploy-1", project.subdomain);
-    let deploy = Deploy::create(&pool, project.id, &storage_path).await.unwrap();
+    let project = Project::create_anonymous(&pool, "testproject").await.unwrap();
+    let deploy = Deploy::create(&pool, project.id, "testproject/deploy-1").await.unwrap();
 
     // Set current deploy
     sqlx::query("UPDATE projects SET current_deploy_id = ? WHERE id = ?")
@@ -42,7 +41,7 @@ async fn test_serve_index_html(pool: SqlitePool) {
         .unwrap();
 
     // Store files
-    storage.store_file(&storage_path, "index.html", b"<h1>Hello</h1>").await.unwrap();
+    storage.store_file("testproject/deploy-1", "index.html", b"<h1>Hello</h1>").await.unwrap();
 
     // Create app
     let state = Arc::new(DeployState {
@@ -58,7 +57,7 @@ async fn test_serve_index_html(pool: SqlitePool) {
         .oneshot(
             Request::builder()
                 .uri("/")
-                .header("Host", &format!("{}.statichub.io", project.subdomain))
+                .header("Host", "testproject.statichub.io")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -79,9 +78,8 @@ async fn test_serve_index_html(pool: SqlitePool) {
 async fn test_serve_nested_file(pool: SqlitePool) {
     let temp_dir = tempfile::tempdir().unwrap();
     let storage = Arc::new(FilesystemStorage::new(temp_dir.path().to_path_buf()));
-    let project = Project::create_anonymous(&pool, None).await.unwrap();
-    let storage_path = format!("{}/deploy-1", project.subdomain);
-    let deploy = Deploy::create(&pool, project.id, &storage_path).await.unwrap();
+    let project = Project::create_anonymous(&pool, "testproject").await.unwrap();
+    let deploy = Deploy::create(&pool, project.id, "testproject/deploy-1").await.unwrap();
 
     // Set current deploy
     sqlx::query("UPDATE projects SET current_deploy_id = ? WHERE id = ?")
@@ -91,7 +89,7 @@ async fn test_serve_nested_file(pool: SqlitePool) {
         .await
         .unwrap();
 
-    storage.store_file(&storage_path, "css/style.css", b"body {}").await.unwrap();
+    storage.store_file("testproject/deploy-1", "css/style.css", b"body {}").await.unwrap();
 
     let state = Arc::new(DeployState {
         pool: pool.clone(),
@@ -105,7 +103,7 @@ async fn test_serve_nested_file(pool: SqlitePool) {
         .oneshot(
             Request::builder()
                 .uri("/css/style.css")
-                .header("Host", &format!("{}.statichub.io", project.subdomain))
+                .header("Host", "testproject.statichub.io")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -123,9 +121,8 @@ async fn test_serve_nested_file(pool: SqlitePool) {
 async fn test_clean_urls(pool: SqlitePool) {
     let temp_dir = tempfile::tempdir().unwrap();
     let storage = Arc::new(FilesystemStorage::new(temp_dir.path().to_path_buf()));
-    let project = Project::create_anonymous(&pool, None).await.unwrap();
-    let storage_path = format!("{}/deploy-1", project.subdomain);
-    let deploy = Deploy::create(&pool, project.id, &storage_path).await.unwrap();
+    let project = Project::create_anonymous(&pool, "testproject").await.unwrap();
+    let deploy = Deploy::create(&pool, project.id, "testproject/deploy-1").await.unwrap();
 
     // Set current deploy and update project config to enable clean URLs
     sqlx::query("UPDATE projects SET current_deploy_id = ?, config = ? WHERE id = ?")
@@ -136,7 +133,7 @@ async fn test_clean_urls(pool: SqlitePool) {
         .await
         .unwrap();
 
-    storage.store_file(&storage_path, "about.html", b"<h1>About</h1>").await.unwrap();
+    storage.store_file("testproject/deploy-1", "about.html", b"<h1>About</h1>").await.unwrap();
 
     let state = Arc::new(DeployState {
         pool: pool.clone(),
@@ -151,7 +148,7 @@ async fn test_clean_urls(pool: SqlitePool) {
         .oneshot(
             Request::builder()
                 .uri("/about")
-                .header("Host", &format!("{}.statichub.io", project.subdomain))
+                .header("Host", "testproject.statichub.io")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -167,9 +164,8 @@ async fn test_clean_urls(pool: SqlitePool) {
 async fn test_spa_mode(pool: SqlitePool) {
     let temp_dir = tempfile::tempdir().unwrap();
     let storage = Arc::new(FilesystemStorage::new(temp_dir.path().to_path_buf()));
-    let project = Project::create_anonymous(&pool, None).await.unwrap();
-    let storage_path = format!("{}/deploy-1", project.subdomain);
-    let deploy = Deploy::create(&pool, project.id, &storage_path).await.unwrap();
+    let project = Project::create_anonymous(&pool, "testproject").await.unwrap();
+    let deploy = Deploy::create(&pool, project.id, "testproject/deploy-1").await.unwrap();
 
     // Set current deploy and update project config to enable SPA mode
     sqlx::query("UPDATE projects SET current_deploy_id = ?, config = ? WHERE id = ?")
@@ -180,7 +176,7 @@ async fn test_spa_mode(pool: SqlitePool) {
         .await
         .unwrap();
 
-    storage.store_file(&storage_path, "index.html", b"<h1>SPA</h1>").await.unwrap();
+    storage.store_file("testproject/deploy-1", "index.html", b"<h1>SPA</h1>").await.unwrap();
 
     let state = Arc::new(DeployState {
         pool: pool.clone(),
@@ -195,7 +191,7 @@ async fn test_spa_mode(pool: SqlitePool) {
         .oneshot(
             Request::builder()
                 .uri("/app/dashboard/settings")
-                .header("Host", &format!("{}.statichub.io", project.subdomain))
+                .header("Host", "testproject.statichub.io")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -212,9 +208,8 @@ async fn test_spa_mode(pool: SqlitePool) {
 async fn test_custom_headers(pool: SqlitePool) {
     let temp_dir = tempfile::tempdir().unwrap();
     let storage = Arc::new(FilesystemStorage::new(temp_dir.path().to_path_buf()));
-    let project = Project::create_anonymous(&pool, None).await.unwrap();
-    let storage_path = format!("{}/deploy-1", project.subdomain);
-    let deploy = Deploy::create(&pool, project.id, &storage_path).await.unwrap();
+    let project = Project::create_anonymous(&pool, "testproject").await.unwrap();
+    let deploy = Deploy::create(&pool, project.id, "testproject/deploy-1").await.unwrap();
 
     // Set current deploy and update project config with custom headers
     sqlx::query("UPDATE projects SET current_deploy_id = ?, config = ? WHERE id = ?")
@@ -225,7 +220,7 @@ async fn test_custom_headers(pool: SqlitePool) {
         .await
         .unwrap();
 
-    storage.store_file(&storage_path, "index.html", b"<h1>Hello</h1>").await.unwrap();
+    storage.store_file("testproject/deploy-1", "index.html", b"<h1>Hello</h1>").await.unwrap();
 
     let state = Arc::new(DeployState {
         pool: pool.clone(),
@@ -239,7 +234,7 @@ async fn test_custom_headers(pool: SqlitePool) {
         .oneshot(
             Request::builder()
                 .uri("/")
-                .header("Host", &format!("{}.statichub.io", project.subdomain))
+                .header("Host", "testproject.statichub.io")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -257,9 +252,8 @@ async fn test_custom_headers(pool: SqlitePool) {
 async fn test_not_found(pool: SqlitePool) {
     let temp_dir = tempfile::tempdir().unwrap();
     let storage = Arc::new(FilesystemStorage::new(temp_dir.path().to_path_buf()));
-    let project = Project::create_anonymous(&pool, None).await.unwrap();
-    let storage_path = format!("{}/deploy-1", project.subdomain);
-    let deploy = Deploy::create(&pool, project.id, &storage_path).await.unwrap();
+    let project = Project::create_anonymous(&pool, "testproject").await.unwrap();
+    let deploy = Deploy::create(&pool, project.id, "testproject/deploy-1").await.unwrap();
 
     // Set current deploy
     sqlx::query("UPDATE projects SET current_deploy_id = ? WHERE id = ?")
@@ -281,7 +275,7 @@ async fn test_not_found(pool: SqlitePool) {
         .oneshot(
             Request::builder()
                 .uri("/nonexistent.html")
-                .header("Host", &format!("{}.statichub.io", project.subdomain))
+                .header("Host", "testproject.statichub.io")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -322,9 +316,8 @@ async fn test_subdomain_not_found(pool: SqlitePool) {
 async fn test_directory_index(pool: SqlitePool) {
     let temp_dir = tempfile::tempdir().unwrap();
     let storage = Arc::new(FilesystemStorage::new(temp_dir.path().to_path_buf()));
-    let project = Project::create_anonymous(&pool, None).await.unwrap();
-    let storage_path = format!("{}/deploy-1", project.subdomain);
-    let deploy = Deploy::create(&pool, project.id, &storage_path).await.unwrap();
+    let project = Project::create_anonymous(&pool, "testproject").await.unwrap();
+    let deploy = Deploy::create(&pool, project.id, "testproject/deploy-1").await.unwrap();
 
     // Set current deploy
     sqlx::query("UPDATE projects SET current_deploy_id = ? WHERE id = ?")
@@ -335,7 +328,7 @@ async fn test_directory_index(pool: SqlitePool) {
         .unwrap();
 
     // Store directory index file
-    storage.store_file(&storage_path, "subdir/index.html", b"<h1>Subdir</h1>").await.unwrap();
+    storage.store_file("testproject/deploy-1", "subdir/index.html", b"<h1>Subdir</h1>").await.unwrap();
 
     let state = Arc::new(DeployState {
         pool: pool.clone(),
@@ -350,7 +343,7 @@ async fn test_directory_index(pool: SqlitePool) {
         .oneshot(
             Request::builder()
                 .uri("/subdir/")
-                .header("Host", &format!("{}.statichub.io", project.subdomain))
+                .header("Host", "testproject.statichub.io")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -366,9 +359,8 @@ async fn test_directory_index(pool: SqlitePool) {
 async fn test_redirect_exact_path(pool: SqlitePool) {
     let temp_dir = tempfile::tempdir().unwrap();
     let storage = Arc::new(FilesystemStorage::new(temp_dir.path().to_path_buf()));
-    let project = Project::create_anonymous(&pool, None).await.unwrap();
-    let storage_path = format!("{}/deploy-1", project.subdomain);
-    let deploy = Deploy::create(&pool, project.id, &storage_path).await.unwrap();
+    let project = Project::create_anonymous(&pool, "testproject").await.unwrap();
+    let deploy = Deploy::create(&pool, project.id, "testproject/deploy-1").await.unwrap();
 
     // Set current deploy and update project config with redirects
     sqlx::query("UPDATE projects SET current_deploy_id = ?, config = ? WHERE id = ?")
@@ -379,7 +371,7 @@ async fn test_redirect_exact_path(pool: SqlitePool) {
         .await
         .unwrap();
 
-    storage.store_file(&storage_path, "index.html", b"<h1>Home</h1>").await.unwrap();
+    storage.store_file("testproject/deploy-1", "index.html", b"<h1>Home</h1>").await.unwrap();
 
     let state = Arc::new(DeployState {
         pool: pool.clone(),
@@ -394,7 +386,7 @@ async fn test_redirect_exact_path(pool: SqlitePool) {
         .oneshot(
             Request::builder()
                 .uri("/old")
-                .header("Host", &format!("{}.statichub.io", project.subdomain))
+                .header("Host", "testproject.statichub.io")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -412,9 +404,8 @@ async fn test_redirect_exact_path(pool: SqlitePool) {
 async fn test_redirect_custom_status(pool: SqlitePool) {
     let temp_dir = tempfile::tempdir().unwrap();
     let storage = Arc::new(FilesystemStorage::new(temp_dir.path().to_path_buf()));
-    let project = Project::create_anonymous(&pool, None).await.unwrap();
-    let storage_path = format!("{}/deploy-1", project.subdomain);
-    let deploy = Deploy::create(&pool, project.id, &storage_path).await.unwrap();
+    let project = Project::create_anonymous(&pool, "testproject").await.unwrap();
+    let deploy = Deploy::create(&pool, project.id, "testproject/deploy-1").await.unwrap();
 
     // Set current deploy and update project config with 302 redirect
     sqlx::query("UPDATE projects SET current_deploy_id = ?, config = ? WHERE id = ?")
@@ -425,7 +416,7 @@ async fn test_redirect_custom_status(pool: SqlitePool) {
         .await
         .unwrap();
 
-    storage.store_file(&storage_path, "index.html", b"<h1>Home</h1>").await.unwrap();
+    storage.store_file("testproject/deploy-1", "index.html", b"<h1>Home</h1>").await.unwrap();
 
     let state = Arc::new(DeployState {
         pool: pool.clone(),
@@ -440,7 +431,7 @@ async fn test_redirect_custom_status(pool: SqlitePool) {
         .oneshot(
             Request::builder()
                 .uri("/temp")
-                .header("Host", &format!("{}.statichub.io", project.subdomain))
+                .header("Host", "testproject.statichub.io")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -458,9 +449,8 @@ async fn test_redirect_custom_status(pool: SqlitePool) {
 async fn test_redirect_not_matching_similar_paths(pool: SqlitePool) {
     let temp_dir = tempfile::tempdir().unwrap();
     let storage = Arc::new(FilesystemStorage::new(temp_dir.path().to_path_buf()));
-    let project = Project::create_anonymous(&pool, None).await.unwrap();
-    let storage_path = format!("{}/deploy-1", project.subdomain);
-    let deploy = Deploy::create(&pool, project.id, &storage_path).await.unwrap();
+    let project = Project::create_anonymous(&pool, "testproject").await.unwrap();
+    let deploy = Deploy::create(&pool, project.id, "testproject/deploy-1").await.unwrap();
 
     // Set current deploy and update project config with redirect rule
     sqlx::query("UPDATE projects SET current_deploy_id = ?, config = ? WHERE id = ?")
@@ -472,8 +462,8 @@ async fn test_redirect_not_matching_similar_paths(pool: SqlitePool) {
         .unwrap();
 
     // Store files that should NOT trigger redirect
-    storage.store_file(&storage_path, "old-page.html", b"<h1>Old Page</h1>").await.unwrap();
-    storage.store_file(&storage_path, "index.html", b"<h1>Home</h1>").await.unwrap();
+    storage.store_file("testproject/deploy-1", "old-page.html", b"<h1>Old Page</h1>").await.unwrap();
+    storage.store_file("testproject/deploy-1", "index.html", b"<h1>Home</h1>").await.unwrap();
 
     let state = Arc::new(DeployState {
         pool: pool.clone(),
@@ -488,7 +478,7 @@ async fn test_redirect_not_matching_similar_paths(pool: SqlitePool) {
         .oneshot(
             Request::builder()
                 .uri("/old-page")
-                .header("Host", &format!("{}.statichub.io", project.subdomain))
+                .header("Host", "testproject.statichub.io")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -505,7 +495,7 @@ async fn test_redirect_not_matching_similar_paths(pool: SqlitePool) {
         .oneshot(
             Request::builder()
                 .uri("/old/")
-                .header("Host", &format!("{}.statichub.io", project.subdomain))
+                .header("Host", "testproject.statichub.io")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -525,7 +515,7 @@ async fn test_redirect_not_matching_similar_paths(pool: SqlitePool) {
         .oneshot(
             Request::builder()
                 .uri("/old/page")
-                .header("Host", &format!("{}.statichub.io", project.subdomain))
+                .header("Host", "testproject.statichub.io")
                 .body(Body::empty())
                 .unwrap(),
         )

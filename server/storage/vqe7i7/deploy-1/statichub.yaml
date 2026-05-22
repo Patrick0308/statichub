@@ -1,0 +1,15 @@
+# StaticHub 配置文件测试
+clean_urls: true
+spa: false
+
+redirects:
+  - from: /old
+    to: /new
+    status: 301
+
+headers:
+  "/*":
+    X-Frame-Options: DENY
+    X-Content-Type-Options: nosniff
+  "/assets/*":
+    Cache-Control: "public, max-age=31536000, immutable"

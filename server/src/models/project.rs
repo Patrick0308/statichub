@@ -1,5 +1,6 @@
 use sqlx::{SqlitePool, Transaction, Sqlite};
 use statichub_shared::ProjectConfig;
+use rand::Rng;
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct Project {
@@ -17,20 +18,24 @@ pub struct Project {
 impl Project {
     pub async fn create_anonymous(
         pool: &SqlitePool,
-        identifier: &str,
+        config: Option<&ProjectConfig>,
     ) -> Result<Project, sqlx::Error> {
-        let subdomain = identifier; // Store identifier only, no domain suffix
-        let name = identifier;
+        // Generate random 6-character identifier
+        let identifier = generate_random_subdomain();
+        let name = identifier.clone();
+        let subdomain = identifier.clone(); // Store identifier only
+        let config_json = config.map(|c| serde_json::to_string(c).ok()).flatten();
 
         let project = sqlx::query_as::<_, Project>(
             r#"
-            INSERT INTO projects (name, subdomain, is_anonymous)
-            VALUES (?, ?, 1)
+            INSERT INTO projects (name, subdomain, is_anonymous, config)
+            VALUES (?, ?, 1, ?)
             RETURNING *
             "#,
         )
         .bind(&name)
         .bind(&subdomain)
+        .bind(config_json)
         .fetch_one(pool)
         .await?;
 
@@ -165,6 +170,18 @@ impl Project {
     }
 }
 
+fn generate_random_subdomain() -> String {
+    const CHARSET: &[u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
+    let mut rng = rand::thread_rng();
+
+    (0..6)
+        .map(|_| {
+            let idx = rng.gen_range(0..CHARSET.len());
+            CHARSET[idx] as char
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -175,9 +192,9 @@ mod tests {
     async fn test_create_anonymous_project() {
         let pool = create_pool(":memory:").await.unwrap();
 
-        let project = Project::create_anonymous(&pool, "x7k2m9").await.unwrap();
+        let project = Project::create_anonymous(&pool, None).await.unwrap();
         assert!(project.is_anonymous);
-        assert_eq!(project.name, "x7k2m9");
+        assert_eq!(project.name.len(), 6);
     }
 
     #[tokio::test]
