@@ -45,6 +45,38 @@ statichub deploy ./dist --name my-app
 
 ## Installation
 
+### Pre-built Binaries
+
+Download the latest release for your platform from the [Releases page](https://github.com/Patrick0308/statichub/releases).
+
+**macOS (Intel)**:
+```bash
+curl -L https://github.com/Patrick0308/statichub/releases/latest/download/statichub-x86_64-apple-darwin.tar.gz | tar xz
+sudo mv statichub /usr/local/bin/
+```
+
+**macOS (Apple Silicon)**:
+```bash
+curl -L https://github.com/Patrick0308/statichub/releases/latest/download/statichub-aarch64-apple-darwin.tar.gz | tar xz
+sudo mv statichub /usr/local/bin/
+```
+
+**Linux (x86_64)**:
+```bash
+curl -L https://github.com/Patrick0308/statichub/releases/latest/download/statichub-x86_64-linux-musl.tar.gz | tar xz
+sudo mv statichub /usr/local/bin/
+```
+
+**Windows**:
+1. Download `statichub-x86_64-windows.zip` from the releases page
+2. Extract the archive
+3. Add the extracted directory to your PATH
+
+**Verify Installation**:
+```bash
+statichub --version
+```
+
 ### From Source
 
 ```bash
