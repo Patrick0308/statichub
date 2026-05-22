@@ -1,11 +1,12 @@
 use crate::{
     api::DeployState,
     error::{AppError, Result},
-    middleware::AuthUser,
+    middleware::{AuthUser, RequestHost},
     models::{Deploy, Project},
 };
 use axum::{
     extract::{Extension, Path, State},
+    http::request::Parts,
     response::Json,
 };
 use serde::{Deserialize, Serialize};
@@ -51,9 +52,14 @@ pub struct RollbackRequest {
 }
 
 pub async fn list_projects(
+    Parts { extensions, .. }: Parts,
     State(state): State<Arc<DeployState>>,
     Extension(auth_user): Extension<AuthUser>,
 ) -> Result<Json<Vec<ProjectListItem>>> {
+    let request_host = extensions
+        .get::<RequestHost>()
+        .ok_or(AppError::MissingHost)?;
+
     let projects = Project::list_by_owner(&state.pool, auth_user.user_id).await?;
 
     let items: Vec<ProjectListItem> = projects
@@ -71,7 +77,7 @@ pub async fn list_projects(
                 id: p.id,
                 name: p.name.clone(),
                 subdomain: p.subdomain.clone(),
-                url: build_project_url(&p.subdomain, &state.base_url),
+                url: build_project_url(&p.subdomain, &request_host.to_string()),
                 current_version,
                 last_deployed_at: Some(p.last_deployed_at.to_string()),
                 created_at: p.created_at.to_string(),
@@ -83,10 +89,15 @@ pub async fn list_projects(
 }
 
 pub async fn get_project_info(
+    Parts { extensions, .. }: Parts,
     State(state): State<Arc<DeployState>>,
     Extension(auth_user): Extension<AuthUser>,
     Path(project_name): Path<String>,
 ) -> Result<Json<ProjectDetail>> {
+    let request_host = extensions
+        .get::<RequestHost>()
+        .ok_or(AppError::MissingHost)?;
+
     // Find project
     let project = Project::find_by_name(&state.pool, &project_name)
         .await?
@@ -117,7 +128,7 @@ pub async fn get_project_info(
         id: project.id,
         name: project.name.clone(),
         subdomain: project.subdomain.clone(),
-        url: build_project_url(&project.subdomain, &state.base_url),
+        url: build_project_url(&project.subdomain, &request_host.to_string()),
         current_version: deploy_infos
             .iter()
             .find(|d| d.is_current)
@@ -128,6 +139,7 @@ pub async fn get_project_info(
 }
 
 pub async fn rollback_project(
+    parts: Parts,
     State(state): State<Arc<DeployState>>,
     Extension(auth_user): Extension<AuthUser>,
     Path(project_name): Path<String>,
@@ -163,7 +175,7 @@ pub async fn rollback_project(
     .await?;
 
     // Return updated project info
-    get_project_info(State(state), Extension(auth_user), Path(project_name)).await
+    get_project_info(parts, State(state), Extension(auth_user), Path(project_name)).await
 }
 
 #[cfg(test)]
