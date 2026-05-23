@@ -6,6 +6,7 @@ pub mod error;
 pub mod api;
 pub mod middleware;
 pub mod cli;
+pub mod tls;
 
 // Test utilities available for integration tests
 pub mod test_utils;
