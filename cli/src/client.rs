@@ -381,7 +381,7 @@ mod tests {
 
     #[test]
     fn test_client_creation() {
-        let client = Client::new("http://statichub.dev".to_string());
-        assert_eq!(client.base_url, "http://statichub.dev");
+        let client = Client::new("https://statichub.dev".to_string());
+        assert_eq!(client.base_url, "https://statichub.dev");
     }
 }

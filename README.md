@@ -358,7 +358,7 @@ cargo test test_add_domain
 - `STATICHUB_JWT_SECRET` - Secret key for JWT token signing
 
 **CLI:**
-- `STATICHUB_SERVER` - Server URL (default: `http://statichub.dev`)
+- `STATICHUB_SERVER` - Server URL (default: `https://statichub.dev`)
 
 **Multi-domain Configuration:**
 
@@ -386,7 +386,7 @@ STATICHUB_PORT=80
 STATICHUB_ALLOWED_DOMAINS=statichub.dev,statichub.com
 
 # CLI environment (users point to their preferred domain)
-export STATICHUB_SERVER=http://statichub.dev
+export STATICHUB_SERVER=https://statichub.dev
 ```
 
 The CLI's `STATICHUB_SERVER` should point to any domain in the server's `STATICHUB_ALLOWED_DOMAINS` list.

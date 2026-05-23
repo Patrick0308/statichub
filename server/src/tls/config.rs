@@ -123,48 +123,50 @@ impl TlsConfig {
     }
 
     /// Extract certificate domains from allowed domains
-    /// - Base domains (statichub.dev) -> wildcard (*.statichub.dev)
+    /// - Base domains (statichub.dev) -> both root (statichub.dev) and wildcard (*.statichub.dev)
     /// - Subdomains (app.statichub.dev) -> keep as-is
     /// - Filter out localhost, 127.0.0.1, and local addresses
     fn extract_certificate_domains(allowed_domains: &[String]) -> Vec<String> {
-        allowed_domains
-            .iter()
-            .filter(|domain| {
-                // Filter out localhost and local addresses
-                !domain.contains("localhost")
-                    && !domain.starts_with("127.")
-                    && !domain.starts_with("192.168.")
-                    && !domain.starts_with("10.")
-                    && !domain.starts_with("172.16.")
-                    && !domain.starts_with("172.17.")
-                    && !domain.starts_with("172.18.")
-                    && !domain.starts_with("172.19.")
-                    && !domain.starts_with("172.20.")
-                    && !domain.starts_with("172.21.")
-                    && !domain.starts_with("172.22.")
-                    && !domain.starts_with("172.23.")
-                    && !domain.starts_with("172.24.")
-                    && !domain.starts_with("172.25.")
-                    && !domain.starts_with("172.26.")
-                    && !domain.starts_with("172.27.")
-                    && !domain.starts_with("172.28.")
-                    && !domain.starts_with("172.29.")
-                    && !domain.starts_with("172.30.")
-                    && !domain.starts_with("172.31.")
-            })
-            .map(|domain| {
-                // If domain has subdomain (more than 2 parts), keep as-is
-                // Otherwise, convert to wildcard
-                let parts: Vec<&str> = domain.split('.').collect();
-                if parts.len() > 2 {
-                    // Subdomain like app.statichub.dev -> keep as-is
-                    domain.clone()
-                } else {
-                    // Base domain like statichub.dev -> *.statichub.dev
-                    format!("*.{}", domain)
-                }
-            })
-            .collect()
+        let mut result = Vec::new();
+
+        for domain in allowed_domains {
+            // Filter out localhost and local addresses
+            if domain.contains("localhost")
+                || domain.starts_with("127.")
+                || domain.starts_with("192.168.")
+                || domain.starts_with("10.")
+                || domain.starts_with("172.16.")
+                || domain.starts_with("172.17.")
+                || domain.starts_with("172.18.")
+                || domain.starts_with("172.19.")
+                || domain.starts_with("172.20.")
+                || domain.starts_with("172.21.")
+                || domain.starts_with("172.22.")
+                || domain.starts_with("172.23.")
+                || domain.starts_with("172.24.")
+                || domain.starts_with("172.25.")
+                || domain.starts_with("172.26.")
+                || domain.starts_with("172.27.")
+                || domain.starts_with("172.28.")
+                || domain.starts_with("172.29.")
+                || domain.starts_with("172.30.")
+                || domain.starts_with("172.31.")
+            {
+                continue;
+            }
+
+            let parts: Vec<&str> = domain.split('.').collect();
+            if parts.len() > 2 {
+                // Subdomain like app.statichub.dev -> keep as-is
+                result.push(domain.clone());
+            } else {
+                // Base domain like statichub.dev -> add both root and wildcard
+                result.push(domain.clone());
+                result.push(format!("*.{}", domain));
+            }
+        }
+
+        result
     }
 }
 
@@ -205,7 +207,7 @@ mod tests {
         let input = vec!["statichub.dev".to_string()];
         let output = TlsConfig::extract_certificate_domains(&input);
 
-        assert_eq!(output, vec!["*.statichub.dev".to_string()]);
+        assert_eq!(output, vec!["statichub.dev".to_string(), "*.statichub.dev".to_string()]);
     }
 
     #[test]
@@ -226,7 +228,7 @@ mod tests {
         ];
         let output = TlsConfig::extract_certificate_domains(&input);
 
-        assert_eq!(output, vec!["*.statichub.dev".to_string()]);
+        assert_eq!(output, vec!["statichub.dev".to_string(), "*.statichub.dev".to_string()]);
     }
 
     #[test]
@@ -238,8 +240,10 @@ mod tests {
         let output = TlsConfig::extract_certificate_domains(&input);
 
         // Subdomains stay as-is (specific certificates)
+        // Base domains get both root and wildcard
         assert_eq!(output, vec![
             "test.sub.statichub.dev".to_string(),
+            "example.com".to_string(),
             "*.example.com".to_string(),
         ]);
     }
@@ -304,7 +308,7 @@ mod tests {
         assert_eq!(config.dns_provider, DnsProvider::Cloudflare);
         assert_eq!(config.dns_api_token, "test_token_123");
         assert_eq!(config.acme_directory, AcmeDirectory::Production);
-        assert_eq!(config.domains, vec!["*.statichub.dev"]);
+        assert_eq!(config.domains, vec!["statichub.dev", "*.statichub.dev"]);
 
         std::env::remove_var("STATICHUB_TLS_ENABLED");
         std::env::remove_var("STATICHUB_TLS_EMAIL");
