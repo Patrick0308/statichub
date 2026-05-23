@@ -1,6 +1,7 @@
 use anyhow::{bail, Context, Result};
 use base64::prelude::*;
 use sha2::{Digest as Sha2Digest, Sha256};
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use rustls_acme::acme::{
@@ -32,6 +33,15 @@ const MAX_ORDER_POLL_ATTEMPTS: u32 = 10;
 
 /// Minimum days of certificate validity before requesting renewal.
 const MIN_CERT_VALIDITY_DAYS: i64 = 30;
+
+/// Background renewal check interval (12 hours).
+const RENEWAL_CHECK_INTERVAL_HOURS: u64 = 12;
+
+/// Retry interval after failed renewal (1 hour).
+const RENEWAL_RETRY_INTERVAL_HOURS: u64 = 1;
+
+/// Warning threshold: alert if certificate expires in < 7 days.
+const CERT_EXPIRATION_WARNING_DAYS: i64 = 7;
 
 pub struct CertificateManager {
     rustls_config: RustlsConfig,
@@ -105,6 +115,15 @@ impl CertificateManager {
             .await
             .context("Failed to create RustlsConfig from certificate")?;
 
+        // Spawn background renewal task
+        spawn_renewal_task(
+            directory_url.to_string(),
+            config.email().to_string(),
+            config.domains().to_vec(),
+            config.cert_dir().clone(),
+            dns_solver.clone(),
+        );
+
         tracing::info!("Certificate manager initialized successfully");
 
         Ok(Self { rustls_config })
@@ -113,6 +132,102 @@ impl CertificateManager {
     pub fn rustls_config(&self) -> RustlsConfig {
         self.rustls_config.clone()
     }
+}
+
+/// Spawn a background task that periodically checks certificate expiration
+/// and renews certificates when necessary.
+fn spawn_renewal_task(
+    directory_url: String,
+    email: String,
+    domains: Vec<String>,
+    cert_dir: PathBuf,
+    dns_solver: Arc<dyn DnsSolver>,
+) {
+    tokio::spawn(async move {
+        tracing::info!("Background certificate renewal task started");
+
+        let cache = DirCache::new(cert_dir);
+        let mut check_interval = std::time::Duration::from_secs(RENEWAL_CHECK_INTERVAL_HOURS * 3600);
+
+        loop {
+            tokio::time::sleep(check_interval).await;
+
+            tracing::debug!("Checking certificate expiration...");
+
+            // Load cached certificate
+            let cached_cert = match cache.load_cert(&domains, &directory_url).await {
+                Ok(Some(pem_data)) => pem_data,
+                Ok(None) => {
+                    tracing::warn!("No cached certificate found during renewal check");
+                    check_interval = std::time::Duration::from_secs(RENEWAL_RETRY_INTERVAL_HOURS * 3600);
+                    continue;
+                }
+                Err(e) => {
+                    tracing::error!("Failed to load certificate during renewal check: {:?}", e);
+                    check_interval = std::time::Duration::from_secs(RENEWAL_RETRY_INTERVAL_HOURS * 3600);
+                    continue;
+                }
+            };
+
+            // Check days until expiration
+            let days_remaining = match get_days_until_expiration(&cached_cert) {
+                Some(days) => days,
+                None => {
+                    tracing::error!("Failed to parse certificate expiration date");
+                    check_interval = std::time::Duration::from_secs(RENEWAL_RETRY_INTERVAL_HOURS * 3600);
+                    continue;
+                }
+            };
+
+            // Log warning if certificate expires soon
+            if days_remaining < CERT_EXPIRATION_WARNING_DAYS {
+                tracing::warn!(
+                    "Certificate will expire in {} days! Attempting renewal...",
+                    days_remaining
+                );
+            } else if days_remaining < MIN_CERT_VALIDITY_DAYS {
+                tracing::info!(
+                    "Certificate expires in {} days, triggering renewal (threshold: {} days)",
+                    days_remaining,
+                    MIN_CERT_VALIDITY_DAYS
+                );
+            } else {
+                tracing::debug!(
+                    "Certificate is valid for {} more days, no renewal needed",
+                    days_remaining
+                );
+                // Reset to normal check interval
+                check_interval = std::time::Duration::from_secs(RENEWAL_CHECK_INTERVAL_HOURS * 3600);
+                continue;
+            }
+
+            // Attempt renewal
+            match acquire_certificate_dns01(
+                &directory_url,
+                &email,
+                &domains,
+                &dns_solver,
+                &cache,
+            )
+            .await
+            {
+                Ok(_) => {
+                    tracing::info!("Certificate renewed successfully in background task");
+                    tracing::warn!(
+                        "New certificate is cached, but server restart required to load it"
+                    );
+                    // Reset to normal check interval after successful renewal
+                    check_interval = std::time::Duration::from_secs(RENEWAL_CHECK_INTERVAL_HOURS * 3600);
+                }
+                Err(e) => {
+                    tracing::error!("Failed to renew certificate: {:?}", e);
+                    tracing::info!("Continuing with existing certificate, will retry in {} hour(s)", RENEWAL_RETRY_INTERVAL_HOURS);
+                    // Set retry interval
+                    check_interval = std::time::Duration::from_secs(RENEWAL_RETRY_INTERVAL_HOURS * 3600);
+                }
+            }
+        }
+    });
 }
 
 /// Build a TLS client config for making ACME API requests.
@@ -498,6 +613,25 @@ fn is_cert_valid(pem_data: &[u8], min_days: i64) -> bool {
     false
 }
 
+/// Get the number of days until a PEM-encoded certificate expires.
+/// Returns None if the certificate cannot be parsed.
+fn get_days_until_expiration(pem_data: &[u8]) -> Option<i64> {
+    let pems = pem::parse_many(pem_data).ok()?;
+
+    for p in &pems {
+        if p.tag() == "CERTIFICATE" {
+            if let Ok((_, cert)) = x509_parser::parse_x509_certificate(p.contents()) {
+                let not_after = cert.validity().not_after.timestamp();
+                let now = chrono::Utc::now().timestamp();
+                let remaining_days = (not_after - now) / 86400;
+                return Some(remaining_days);
+            }
+        }
+    }
+
+    None
+}
+
 /// Split combined PEM data (key + certs) into separate key and cert components.
 fn split_pem(pem_data: &[u8]) -> Result<(Vec<u8>, Vec<u8>)> {
     let pems = pem::parse_many(pem_data).context("Failed to parse PEM data")?;
@@ -597,5 +731,11 @@ mod tests {
     fn test_is_cert_valid_invalid_data() {
         assert!(!is_cert_valid(b"not pem data", 30));
         assert!(!is_cert_valid(b"", 30));
+    }
+
+    #[test]
+    fn test_get_days_until_expiration_invalid_data() {
+        assert!(get_days_until_expiration(b"not pem data").is_none());
+        assert!(get_days_until_expiration(b"").is_none());
     }
 }
