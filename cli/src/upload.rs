@@ -244,4 +244,42 @@ mod tests {
         assert_eq!(files[0].path, "index.html");
         assert_eq!(files[0].content, b"<html><body>HTM file</body></html>");
     }
+
+    #[test]
+    fn test_reject_non_html_file() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("document.pdf");
+        fs::write(&file_path, b"PDF content").unwrap();
+
+        let result = collect_files(&file_path);
+
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err().to_string();
+        assert!(error_msg.contains("only supports .html and .htm files"));
+        assert!(error_msg.contains("Got: .pdf"));
+    }
+
+    #[test]
+    fn test_reject_txt_file() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("readme.txt");
+        fs::write(&file_path, b"text content").unwrap();
+
+        let result = collect_files(&file_path);
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("only supports .html and .htm files"));
+    }
+
+    #[test]
+    fn test_reject_js_file() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("app.js");
+        fs::write(&file_path, b"console.log('test')").unwrap();
+
+        let result = collect_files(&file_path);
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("only supports .html and .htm files"));
+    }
 }
