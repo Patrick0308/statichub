@@ -282,4 +282,18 @@ mod tests {
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("only supports .html and .htm files"));
     }
+
+    #[test]
+    fn test_reject_no_extension_file() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("noextension");
+        fs::write(&file_path, b"some content").unwrap();
+
+        let result = collect_files(&file_path);
+
+        assert!(result.is_err());
+        let error_msg = result.unwrap_err().to_string();
+        assert!(error_msg.contains("only supports .html and .htm files"));
+        assert!(error_msg.contains("Got: ."));
+    }
 }
