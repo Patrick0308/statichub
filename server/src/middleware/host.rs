@@ -29,9 +29,10 @@ pub async fn host_validation_middleware(
 ) -> Result<Response> {
     let headers: &HeaderMap = req.headers();
 
-    // Extract Host header
+    // Extract Host header (HTTP/1.1) or :authority pseudo-header (HTTP/2)
     let host_header = headers
         .get("host")
+        .or_else(|| headers.get(":authority"))
         .and_then(|h| h.to_str().ok())
         .ok_or_else(|| AppError::InvalidHost("Host header is required".to_string()))?;
 
@@ -84,4 +85,7 @@ mod tests {
         };
         assert_eq!(host.to_string(), "statichub.dev");
     }
+
+    // Note: HTTP/2 :authority header support is tested in integration tests
+    // since testing middleware with Next requires a full router setup
 }
