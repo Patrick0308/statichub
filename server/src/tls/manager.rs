@@ -4,6 +4,10 @@ use sha2::{Digest as Sha2Digest, Sha256};
 use std::path::PathBuf;
 use std::sync::Arc;
 
+use p256::elliptic_curve::sec1::ToEncodedPoint;
+use p256::pkcs8::DecodePrivateKey;
+use p256::SecretKey;
+
 use rustls_acme::acme::{
     Account, AuthStatus, Challenge, ChallengeType, Directory, Identifier, OrderStatus,
     LETS_ENCRYPT_PRODUCTION_DIRECTORY, LETS_ENCRYPT_STAGING_DIRECTORY,
@@ -559,34 +563,32 @@ fn compute_dns01_value(account_key_pkcs8: &[u8], token: &str) -> Result<String> 
 
 /// Extract the EC P-256 public key (x, y) coordinates from a PKCS8-encoded key.
 ///
-/// The PKCS8 structure for ECDSA P-256 contains the public key as a BIT STRING
-/// with the uncompressed point format: 0x04 || x[32] || y[32].
-/// We search for this 65-byte uncompressed point in the DER structure.
+/// Uses proper ASN.1/PKCS8 parsing via the p256 crate to robustly extract
+/// the public key coordinates from the private key structure.
 fn extract_ec_pubkey_from_pkcs8(pkcs8: &[u8]) -> Result<([u8; 32], [u8; 32])> {
-    // The PKCS8 structure for EC keys embeds the public key as a BIT STRING.
-    // For P-256, we look for the 65-byte uncompressed point (0x04 prefix).
-    // The public key appears near the end of the PKCS8 structure.
-    //
-    // Rather than implementing a full ASN.1 parser, we scan for the pattern:
-    // BIT STRING tag (0x03) + length (0x42 = 66) + unused bits (0x00) + 0x04 + 64 bytes
-    for i in 0..pkcs8.len().saturating_sub(67) {
-        if pkcs8[i] == 0x03
-            && pkcs8[i + 1] == 0x42
-            && pkcs8[i + 2] == 0x00
-            && pkcs8[i + 3] == 0x04
-        {
-            let point_start = i + 4;
-            if point_start + 64 <= pkcs8.len() {
-                let mut x = [0u8; 32];
-                let mut y = [0u8; 32];
-                x.copy_from_slice(&pkcs8[point_start..point_start + 32]);
-                y.copy_from_slice(&pkcs8[point_start + 32..point_start + 64]);
-                return Ok((x, y));
-            }
-        }
+    // Parse the PKCS8 DER-encoded private key using the p256 crate
+    let secret_key = SecretKey::from_pkcs8_der(pkcs8)
+        .context("Failed to parse PKCS8 DER structure")?;
+
+    // Get the public key from the private key
+    let public_key = secret_key.public_key();
+
+    // Convert to uncompressed SEC1 encoding (0x04 || x[32] || y[32])
+    let encoded_point = public_key.to_encoded_point(false); // false = uncompressed
+    let point_bytes = encoded_point.as_bytes();
+
+    // Verify format: first byte should be 0x04 (uncompressed), total 65 bytes
+    if point_bytes.len() != 65 || point_bytes[0] != 0x04 {
+        bail!("Unexpected public key encoding format");
     }
 
-    bail!("Could not find EC public key point in PKCS8 structure")
+    // Extract x and y coordinates (32 bytes each, skipping the 0x04 prefix)
+    let mut x = [0u8; 32];
+    let mut y = [0u8; 32];
+    x.copy_from_slice(&point_bytes[1..33]);
+    y.copy_from_slice(&point_bytes[33..65]);
+
+    Ok((x, y))
 }
 
 /// Check if a PEM-encoded certificate is still valid for at least `min_days` days.

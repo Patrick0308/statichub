@@ -53,6 +53,8 @@ pem = "3"
 x509-parser = "0.16"
 rcgen = { version = "0.13", default-features = false, features = ["pem", "aws_lc_rs"] }
 webpki-roots = "0.26"
+pkcs8 = { version = "0.10", features = ["std"] }
+p256 = { version = "0.13", features = ["pkcs8"] }
 
 # Utilities
 uuid = { version = "1", features = ["v4", "serde"] }
