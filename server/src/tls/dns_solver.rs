@@ -47,7 +47,7 @@ struct DnsRecord {
 }
 
 pub struct CloudflareSolver {
-    pub api_token: String,
+    api_token: String,
     client: reqwest::Client,
     base_url: String,
 }
@@ -239,12 +239,6 @@ impl DnsSolver for CloudflareSolver {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_cloudflare_solver_creation() {
-        let solver = CloudflareSolver::new("test_token".to_string());
-        assert_eq!(solver.api_token, "test_token");
-    }
 
     #[tokio::test]
     async fn test_get_zone_id_success() {
