@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use std::path::PathBuf;
 
 #[derive(Clone)]
@@ -26,7 +26,7 @@ pub enum AcmeDirectory {
 impl TlsConfig {
     /// Parse TLS configuration from environment variables
     /// Returns None if TLS is disabled
-    pub fn from_env(_allowed_domains: &[String]) -> Result<Option<Self>> {
+    pub fn from_env(allowed_domains: &[String]) -> Result<Option<Self>> {
         let enabled = std::env::var("STATICHUB_TLS_ENABLED")
             .map(|v| v.to_lowercase() == "true")
             .unwrap_or(false);
@@ -35,8 +35,56 @@ impl TlsConfig {
             return Ok(None);
         }
 
-        // Will implement full parsing in next steps
-        bail!("TLS configuration parsing not yet implemented")
+        // Required fields
+        let email = std::env::var("STATICHUB_TLS_EMAIL")
+            .context("STATICHUB_TLS_EMAIL is required when TLS is enabled")?;
+
+        let dns_provider_str = std::env::var("STATICHUB_DNS_PROVIDER")
+            .context("STATICHUB_DNS_PROVIDER is required when TLS is enabled")?;
+
+        let dns_provider = match dns_provider_str.to_lowercase().as_str() {
+            "cloudflare" => DnsProvider::Cloudflare,
+            _ => bail!("Unsupported DNS provider: {}. Supported: cloudflare", dns_provider_str),
+        };
+
+        let dns_api_token = std::env::var("STATICHUB_DNS_API_TOKEN")
+            .context("STATICHUB_DNS_API_TOKEN is required when TLS is enabled")?;
+
+        // Optional fields with defaults
+        let port = std::env::var("STATICHUB_TLS_PORT")
+            .unwrap_or_else(|_| "443".to_string())
+            .parse()
+            .context("Invalid STATICHUB_TLS_PORT value")?;
+
+        let cert_dir = std::env::var("STATICHUB_CERT_DIR")
+            .unwrap_or_else(|_| "./var/statichub/certs".to_string())
+            .into();
+
+        let acme_directory_str = std::env::var("STATICHUB_ACME_DIRECTORY")
+            .unwrap_or_else(|_| "staging".to_string());
+
+        let acme_directory = match acme_directory_str.to_lowercase().as_str() {
+            "staging" => AcmeDirectory::Staging,
+            "production" => AcmeDirectory::Production,
+            _ => bail!("Invalid STATICHUB_ACME_DIRECTORY: {}. Use 'staging' or 'production'", acme_directory_str),
+        };
+
+        // Extract domains for certificates
+        let domains = Self::extract_certificate_domains(allowed_domains);
+
+        if domains.is_empty() {
+            bail!("No valid domains for TLS certificates. Check STATICHUB_ALLOWED_DOMAINS");
+        }
+
+        Ok(Some(Self {
+            port,
+            email,
+            cert_dir,
+            dns_provider,
+            dns_api_token,
+            acme_directory,
+            domains,
+        }))
     }
 
     /// Get the TLS port
@@ -194,5 +242,76 @@ mod tests {
             "test.sub.statichub.dev".to_string(),
             "*.example.com".to_string(),
         ]);
+    }
+
+    #[test]
+    #[serial]
+    fn test_tls_enabled_requires_email() {
+        std::env::set_var("STATICHUB_TLS_ENABLED", "true");
+        std::env::remove_var("STATICHUB_TLS_EMAIL");
+        std::env::set_var("STATICHUB_DNS_PROVIDER", "cloudflare");
+        std::env::set_var("STATICHUB_DNS_API_TOKEN", "test_token");
+
+        let allowed_domains = vec!["statichub.dev".to_string()];
+        let result = TlsConfig::from_env(&allowed_domains);
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("STATICHUB_TLS_EMAIL"));
+
+        std::env::remove_var("STATICHUB_TLS_ENABLED");
+        std::env::remove_var("STATICHUB_DNS_PROVIDER");
+        std::env::remove_var("STATICHUB_DNS_API_TOKEN");
+    }
+
+    #[test]
+    #[serial]
+    fn test_tls_enabled_requires_dns_provider() {
+        std::env::set_var("STATICHUB_TLS_ENABLED", "true");
+        std::env::set_var("STATICHUB_TLS_EMAIL", "test@example.com");
+        std::env::remove_var("STATICHUB_DNS_PROVIDER");
+        std::env::set_var("STATICHUB_DNS_API_TOKEN", "test_token");
+
+        let allowed_domains = vec!["statichub.dev".to_string()];
+        let result = TlsConfig::from_env(&allowed_domains);
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("STATICHUB_DNS_PROVIDER"));
+
+        std::env::remove_var("STATICHUB_TLS_ENABLED");
+        std::env::remove_var("STATICHUB_TLS_EMAIL");
+        std::env::remove_var("STATICHUB_DNS_API_TOKEN");
+    }
+
+    #[test]
+    #[serial]
+    fn test_tls_full_configuration() {
+        std::env::set_var("STATICHUB_TLS_ENABLED", "true");
+        std::env::set_var("STATICHUB_TLS_EMAIL", "admin@example.com");
+        std::env::set_var("STATICHUB_TLS_PORT", "8443");
+        std::env::set_var("STATICHUB_CERT_DIR", "/tmp/certs");
+        std::env::set_var("STATICHUB_DNS_PROVIDER", "cloudflare");
+        std::env::set_var("STATICHUB_DNS_API_TOKEN", "test_token_123");
+        std::env::set_var("STATICHUB_ACME_DIRECTORY", "production");
+
+        let allowed_domains = vec!["statichub.dev".to_string()];
+        let result = TlsConfig::from_env(&allowed_domains).unwrap();
+
+        assert!(result.is_some());
+        let config = result.unwrap();
+        assert_eq!(config.port, 8443);
+        assert_eq!(config.email, "admin@example.com");
+        assert_eq!(config.cert_dir, PathBuf::from("/tmp/certs"));
+        assert_eq!(config.dns_provider, DnsProvider::Cloudflare);
+        assert_eq!(config.dns_api_token, "test_token_123");
+        assert_eq!(config.acme_directory, AcmeDirectory::Production);
+        assert_eq!(config.domains, vec!["*.statichub.dev"]);
+
+        std::env::remove_var("STATICHUB_TLS_ENABLED");
+        std::env::remove_var("STATICHUB_TLS_EMAIL");
+        std::env::remove_var("STATICHUB_TLS_PORT");
+        std::env::remove_var("STATICHUB_CERT_DIR");
+        std::env::remove_var("STATICHUB_DNS_PROVIDER");
+        std::env::remove_var("STATICHUB_DNS_API_TOKEN");
+        std::env::remove_var("STATICHUB_ACME_DIRECTORY");
     }
 }
