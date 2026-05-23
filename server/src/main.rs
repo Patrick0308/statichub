@@ -1,4 +1,5 @@
 use statichub_server::{db, storage, api, create_router, cli, config::ServerConfig};
+use statichub_server::tls::{TlsConfig, CloudflareSolver, CertificateManager, DnsSolver};
 use clap::Parser;
 use std::{net::SocketAddr, sync::Arc, io::Write};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -113,8 +114,6 @@ async fn serve() -> anyhow::Result<()> {
         ));
 
     // Check if TLS is enabled
-    use statichub_server::tls::{TlsConfig, CloudflareSolver, CertificateManager};
-
     if let Some(tls_config) = TlsConfig::from_env(&config.allowed_domains)? {
         // TLS mode
         tracing::info!("🔒 TLS enabled");
@@ -122,7 +121,7 @@ async fn serve() -> anyhow::Result<()> {
         // Create DNS solver
         let dns_solver = Arc::new(CloudflareSolver::new(
             tls_config.dns_api_token().to_string()
-        )) as Arc<dyn statichub_server::tls::DnsSolver>;
+        )) as Arc<dyn DnsSolver>;
 
         // Initialize certificate manager
         let cert_manager = CertificateManager::new(tls_config.clone(), dns_solver).await?;
