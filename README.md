@@ -391,6 +391,104 @@ export STATICHUB_SERVER=http://statichub.dev
 
 The CLI's `STATICHUB_SERVER` should point to any domain in the server's `STATICHUB_ALLOWED_DOMAINS` list.
 
+## TLS / HTTPS Support
+
+StaticHub supports automatic HTTPS using Let's Encrypt with DNS-01 challenge.
+
+### Requirements
+
+- A domain name with DNS hosted on Cloudflare
+- Cloudflare API token with Zone:Edit permissions
+
+### Configuration
+
+```bash
+# Enable TLS
+STATICHUB_TLS_ENABLED=true
+
+# TLS port (default: 443)
+STATICHUB_TLS_PORT=443
+
+# Let's Encrypt contact email (required)
+STATICHUB_TLS_EMAIL=admin@example.com
+
+# ACME environment (default: staging)
+# Use 'staging' for testing, 'production' for real certificates
+STATICHUB_ACME_DIRECTORY=staging
+
+# Certificate storage directory
+STATICHUB_CERT_DIR=./var/statichub/certs
+
+# DNS provider (currently only Cloudflare supported)
+STATICHUB_DNS_PROVIDER=cloudflare
+STATICHUB_DNS_API_TOKEN=your_cloudflare_token
+
+# Domains will be extracted from STATICHUB_ALLOWED_DOMAINS
+# Base domains (statichub.dev) -> wildcard cert (*.statichub.dev)
+# Subdomains (api.statichub.dev) -> specific cert
+STATICHUB_ALLOWED_DOMAINS=statichub.dev,api.example.com
+```
+
+### Testing with Staging
+
+Always test with staging environment first to avoid hitting Let's Encrypt rate limits:
+
+```bash
+STATICHUB_TLS_ENABLED=true \
+STATICHUB_ACME_DIRECTORY=staging \
+STATICHUB_TLS_EMAIL=test@example.com \
+STATICHUB_DNS_PROVIDER=cloudflare \
+STATICHUB_DNS_API_TOKEN=xxx \
+./target/release/statichub-server
+```
+
+Staging certificates are not trusted by browsers, but verify that:
+1. DNS challenge completes successfully
+2. Certificate is acquired
+3. Server starts on port 443
+
+### Production Deployment
+
+Once staging works, switch to production:
+
+```bash
+STATICHUB_ACME_DIRECTORY=production
+```
+
+**Rate Limits:**
+- Production: 50 certificates per domain per week
+- Be careful when testing in production
+
+### Certificate Management
+
+Check certificate status:
+```bash
+statichub-server tls status
+```
+
+Manually renew certificates:
+```bash
+statichub-server tls renew
+```
+
+Certificates are automatically renewed 30 days before expiration.
+
+### Troubleshooting
+
+**Certificate acquisition fails:**
+- Verify Cloudflare API token has Zone:Edit permissions
+- Check DNS records can be updated: `_acme-challenge.yourdomain.com`
+- Review server logs for detailed error messages
+
+**DNS propagation:**
+- Certificate acquisition waits 2 minutes for DNS propagation
+- If challenges fail, check DNS provider's propagation time
+
+**Rate limiting:**
+- Staging environment has lenient limits for testing
+- Production: 50 certs/domain/week
+- Use staging first to verify configuration
+
 ### Database Migrations
 
 ```bash
@@ -448,7 +546,7 @@ sqlx migrate revert
 - [ ] GitHub OAuth provider
 - [ ] Deploy tokens for CI/CD
 - [ ] S3 storage backend
-- [ ] Let's Encrypt SSL automation
+- [x] Let's Encrypt SSL automation
 - [ ] Deployment webhooks
 - [ ] Access logs and analytics
 - [ ] Team collaboration features
