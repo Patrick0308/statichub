@@ -54,7 +54,9 @@ impl ServerConfig {
                 let base = &d[1..]; // Remove "*" to get ".example.com"
                 domain.ends_with(base) && domain.len() > base.len()
             } else {
-                d == domain
+                // Exact match or suffix match
+                // "example.com" matches "example.com" and "*.example.com"
+                domain == d || domain.ends_with(&format!(".{}", d))
             }
         })
     }
@@ -245,5 +247,22 @@ mod config_tests {
         // Different domain should not match
         assert!(!config.is_allowed("example.org"));
         assert!(!config.is_allowed("foo.example.org"));
+    }
+
+    #[test]
+    fn test_suffix_matching() {
+        let config = ServerConfig {
+            port: 3000,
+            allowed_domains: vec!["statichub.dev".to_string()],
+        };
+        // Exact match should work
+        assert!(config.is_allowed("statichub.dev"));
+        // Subdomains should match via suffix matching
+        assert!(config.is_allowed("mfheoq.statichub.dev"));
+        assert!(config.is_allowed("abc.statichub.dev"));
+        assert!(config.is_allowed("test.sub.statichub.dev"));
+        // Different domains should not match
+        assert!(!config.is_allowed("statichub.com"));
+        assert!(!config.is_allowed("otherstatichub.dev"));
     }
 }
