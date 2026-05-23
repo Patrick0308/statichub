@@ -29,11 +29,16 @@ pub async fn host_validation_middleware(
 ) -> Result<Response> {
     let headers: &HeaderMap = req.headers();
 
-    // Extract Host header (HTTP/1.1) or :authority pseudo-header (HTTP/2)
+    // Extract host from multiple sources:
+    // 1. Host header (HTTP/1.1)
+    // 2. URI authority (HTTP/2 :authority pseudo-header is converted to this)
     let host_header = headers
         .get("host")
-        .or_else(|| headers.get(":authority"))
         .and_then(|h| h.to_str().ok())
+        .or_else(|| {
+            // Fallback to URI authority for HTTP/2
+            req.uri().authority().map(|a| a.as_str())
+        })
         .ok_or_else(|| AppError::InvalidHost("Host header is required".to_string()))?;
 
     // Parse domain and port
