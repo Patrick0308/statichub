@@ -9,14 +9,15 @@ pub trait DnsSolver: Send + Sync {
 
 pub struct CloudflareSolver {
     pub api_token: String,
-    client: reqwest::Client,
+    // Will be used for API calls in Task 6
+    _client: reqwest::Client,
 }
 
 impl CloudflareSolver {
     pub fn new(api_token: String) -> Self {
         Self {
             api_token,
-            client: reqwest::Client::new(),
+            _client: reqwest::Client::new(),
         }
     }
 }
