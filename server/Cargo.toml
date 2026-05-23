@@ -46,6 +46,14 @@ bcrypt = "0.15"
 mime_guess = "2"
 reqwest = { version = "0.11", features = ["json"] }
 
+# Crypto (for ACME DNS-01 challenge computation and certificate management)
+sha2 = "0.10"
+base64 = "0.22"
+pem = "3"
+x509-parser = "0.16"
+rcgen = { version = "0.13", default-features = false, features = ["pem", "aws_lc_rs"] }
+webpki-roots = "0.26"
+
 # Utilities
 uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
