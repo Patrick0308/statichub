@@ -73,6 +73,36 @@ impl TlsConfig {
     pub fn domains(&self) -> &[String] {
         &self.domains
     }
+
+    /// Extract certificate domains from allowed domains
+    /// - Base domains (statichub.dev) -> wildcard (*.statichub.dev)
+    /// - Subdomains (app.statichub.dev) -> keep as-is
+    /// - Filter out localhost, 127.0.0.1, and local addresses
+    fn extract_certificate_domains(allowed_domains: &[String]) -> Vec<String> {
+        allowed_domains
+            .iter()
+            .filter(|domain| {
+                // Filter out localhost and local addresses
+                !domain.contains("localhost")
+                    && !domain.starts_with("127.")
+                    && !domain.starts_with("192.168.")
+                    && !domain.starts_with("10.")
+                    && !domain.starts_with("172.")
+            })
+            .map(|domain| {
+                // If domain has subdomain (more than 2 parts), keep as-is
+                // Otherwise, convert to wildcard
+                let parts: Vec<&str> = domain.split('.').collect();
+                if parts.len() > 2 {
+                    // Subdomain like app.statichub.dev -> keep as-is
+                    domain.clone()
+                } else {
+                    // Base domain like statichub.dev -> *.statichub.dev
+                    format!("*.{}", domain)
+                }
+            })
+            .collect()
+    }
 }
 
 impl std::fmt::Debug for TlsConfig {
@@ -105,5 +135,52 @@ mod tests {
         assert!(result.is_none());
 
         std::env::remove_var("STATICHUB_TLS_ENABLED");
+    }
+
+    #[test]
+    fn test_extract_certificate_domains_wildcard() {
+        let input = vec!["statichub.dev".to_string()];
+        let output = TlsConfig::extract_certificate_domains(&input);
+
+        assert_eq!(output, vec!["*.statichub.dev".to_string()]);
+    }
+
+    #[test]
+    fn test_extract_certificate_domains_specific() {
+        let input = vec!["api.example.com".to_string()];
+        let output = TlsConfig::extract_certificate_domains(&input);
+
+        assert_eq!(output, vec!["api.example.com".to_string()]);
+    }
+
+    #[test]
+    fn test_extract_certificate_domains_filter_localhost() {
+        let input = vec![
+            "statichub.dev".to_string(),
+            "localhost".to_string(),
+            "127.0.0.1".to_string(),
+            "api.example.com".to_string(),
+        ];
+        let output = TlsConfig::extract_certificate_domains(&input);
+
+        assert_eq!(output, vec![
+            "*.statichub.dev".to_string(),
+            "api.example.com".to_string(),
+        ]);
+    }
+
+    #[test]
+    fn test_extract_certificate_domains_subdomain() {
+        let input = vec![
+            "app.statichub.dev".to_string(),
+            "api.statichub.dev".to_string(),
+        ];
+        let output = TlsConfig::extract_certificate_domains(&input);
+
+        // Subdomains stay as-is (specific certificates)
+        assert_eq!(output, vec![
+            "app.statichub.dev".to_string(),
+            "api.statichub.dev".to_string(),
+        ]);
     }
 }
