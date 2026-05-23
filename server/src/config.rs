@@ -72,7 +72,11 @@ impl ServerConfig {
                     return Some(base.to_string());
                 }
             } else if allowed == hostname {
+                // Exact match
                 return Some(hostname.to_string());
+            } else if hostname.ends_with(&format!(".{}", allowed)) {
+                // Suffix match: hostname is a subdomain of allowed
+                return Some(allowed.to_string());
             }
         }
         None
@@ -264,5 +268,62 @@ mod config_tests {
         // Different domains should not match
         assert!(!config.is_allowed("statichub.com"));
         assert!(!config.is_allowed("otherstatichub.dev"));
+    }
+
+    #[test]
+    fn test_extract_base_domain_exact_match() {
+        let config = ServerConfig {
+            port: 3000,
+            allowed_domains: vec!["statichub.dev".to_string()],
+        };
+        assert_eq!(
+            config.extract_base_domain("statichub.dev"),
+            Some("statichub.dev".to_string())
+        );
+    }
+
+    #[test]
+    fn test_extract_base_domain_suffix_match() {
+        let config = ServerConfig {
+            port: 3000,
+            allowed_domains: vec!["statichub.dev".to_string()],
+        };
+        // Subdomains should extract base domain via suffix matching
+        assert_eq!(
+            config.extract_base_domain("mfheoq.statichub.dev"),
+            Some("statichub.dev".to_string())
+        );
+        assert_eq!(
+            config.extract_base_domain("abc.statichub.dev"),
+            Some("statichub.dev".to_string())
+        );
+        assert_eq!(
+            config.extract_base_domain("test.sub.statichub.dev"),
+            Some("statichub.dev".to_string())
+        );
+    }
+
+    #[test]
+    fn test_extract_base_domain_wildcard() {
+        let config = ServerConfig {
+            port: 3000,
+            allowed_domains: vec!["*.example.com".to_string()],
+        };
+        assert_eq!(
+            config.extract_base_domain("foo.example.com"),
+            Some("example.com".to_string())
+        );
+        // Base domain itself should not match wildcard
+        assert_eq!(config.extract_base_domain("example.com"), None);
+    }
+
+    #[test]
+    fn test_extract_base_domain_no_match() {
+        let config = ServerConfig {
+            port: 3000,
+            allowed_domains: vec!["statichub.dev".to_string()],
+        };
+        assert_eq!(config.extract_base_domain("example.com"), None);
+        assert_eq!(config.extract_base_domain("otherstatichub.dev"), None);
     }
 }
