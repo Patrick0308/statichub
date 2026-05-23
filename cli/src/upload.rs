@@ -15,6 +15,35 @@ pub struct UploadFile {
 pub fn collect_files(dir: &Path) -> Result<Vec<UploadFile>> {
     let mut files = Vec::new();
 
+    // Detect if the path is a single file
+    if dir.is_file() {
+        // Check file extension
+        let extension = dir.extension()
+            .and_then(|s| s.to_str())
+            .unwrap_or("");
+
+        if extension != "html" && extension != "htm" {
+            anyhow::bail!(
+                "Single file deployment only supports .html and .htm files. Got: .{}",
+                extension
+            );
+        }
+
+        let mut content = Vec::new();
+        File::open(dir)
+            .with_context(|| format!("Failed to open file: {}", dir.display()))?
+            .read_to_end(&mut content)
+            .with_context(|| format!("Failed to read file: {}", dir.display()))?;
+
+        files.push(UploadFile {
+            path: "index.html".to_string(),
+            content,
+        });
+
+        return Ok(files);
+    }
+
+    // Continue with existing directory processing logic...
     for entry in WalkDir::new(dir)
         .follow_links(false)
         .into_iter()
@@ -188,5 +217,18 @@ mod tests {
         // Tarball should be compressed (non-empty and reasonable size)
         assert!(!tarball.is_empty());
         assert!(tarball.len() < 500); // Reasonable size for small files with headers
+    }
+
+    #[test]
+    fn test_collect_single_html_file() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("page.html");
+        fs::write(&file_path, b"<html><body>Hello World</body></html>").unwrap();
+
+        let files = collect_files(&file_path).unwrap();
+
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "index.html");
+        assert_eq!(files[0].content, b"<html><body>Hello World</body></html>");
     }
 }
