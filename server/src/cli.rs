@@ -22,6 +22,12 @@ pub enum Commands {
         #[command(subcommand)]
         command: DbCommands,
     },
+
+    /// TLS certificate management
+    Tls {
+        #[command(subcommand)]
+        command: TlsCommands,
+    },
 }
 
 #[derive(Subcommand)]
@@ -41,4 +47,12 @@ pub enum DbCommands {
         #[arg(long)]
         force: bool,
     },
+}
+
+#[derive(Subcommand)]
+pub enum TlsCommands {
+    /// Manually renew TLS certificates
+    Renew,
+    /// Show TLS certificate status
+    Status,
 }

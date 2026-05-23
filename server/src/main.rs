@@ -27,6 +27,9 @@ async fn main() -> anyhow::Result<()> {
         Some(cli::Commands::Db { command }) => {
             handle_db_command(command).await?;
         }
+        Some(cli::Commands::Tls { command }) => {
+            handle_tls_command(command).await?;
+        }
         None => {
             // Default: serve
             serve().await?;
@@ -140,6 +143,53 @@ async fn serve() -> anyhow::Result<()> {
 
         let listener = tokio::net::TcpListener::bind(addr).await?;
         axum::serve(listener, app).await?;
+    }
+
+    Ok(())
+}
+
+async fn handle_tls_command(command: cli::TlsCommands) -> anyhow::Result<()> {
+    use statichub_server::tls::{TlsConfig, CloudflareSolver, CertificateManager, DnsSolver};
+    use statichub_server::config::ServerConfig;
+
+    // Load configuration
+    let config = ServerConfig::from_env()?;
+
+    let tls_config = TlsConfig::from_env(&config.allowed_domains)?
+        .ok_or_else(|| anyhow::anyhow!("TLS is not enabled. Set STATICHUB_TLS_ENABLED=true"))?;
+
+    match command {
+        cli::TlsCommands::Renew => {
+            println!("Renewing TLS certificates...");
+            println!("Domains: {:?}", tls_config.domains());
+
+            let dns_solver = Arc::new(CloudflareSolver::new(
+                tls_config.dns_api_token().to_string()
+            )) as Arc<dyn DnsSolver>;
+
+            let _cert_manager = CertificateManager::new(tls_config, dns_solver).await?;
+
+            println!("✓ Certificates renewed successfully");
+        }
+        cli::TlsCommands::Status => {
+            println!("TLS Certificate Status\n");
+            println!("ACME Directory: {:?}", tls_config.acme_directory());
+            println!("Contact Email: {}", tls_config.email());
+            println!("Certificate Directory: {:?}", tls_config.cert_dir());
+            println!("\nDomains:");
+            for domain in tls_config.domains() {
+                println!("  - {}", domain);
+
+                // Try to read certificate info from disk
+                // This is simplified - real implementation would parse cert files
+                let cert_path = tls_config.cert_dir().join(format!("{}.pem", domain));
+                if cert_path.exists() {
+                    println!("    Status: Certificate file exists");
+                } else {
+                    println!("    Status: No certificate found");
+                }
+            }
+        }
     }
 
     Ok(())
