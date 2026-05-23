@@ -231,4 +231,17 @@ mod tests {
         assert_eq!(files[0].path, "index.html");
         assert_eq!(files[0].content, b"<html><body>Hello World</body></html>");
     }
+
+    #[test]
+    fn test_collect_single_htm_file() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("page.htm");
+        fs::write(&file_path, b"<html><body>HTM file</body></html>").unwrap();
+
+        let files = collect_files(&file_path).unwrap();
+
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "index.html");
+        assert_eq!(files[0].content, b"<html><body>HTM file</body></html>");
+    }
 }
