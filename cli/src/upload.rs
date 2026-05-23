@@ -296,4 +296,17 @@ mod tests {
         assert!(error_msg.contains("only supports .html and .htm files"));
         assert!(error_msg.contains("Got: ."));
     }
+
+    #[test]
+    fn test_collect_empty_html_file() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("empty.html");
+        fs::write(&file_path, b"").unwrap();
+
+        let files = collect_files(&file_path).unwrap();
+
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "index.html");
+        assert_eq!(files[0].content, b"");
+    }
 }
