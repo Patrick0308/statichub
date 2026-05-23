@@ -1,5 +1,6 @@
 use anyhow::{Result, Context};
 use std::sync::Arc;
+#[allow(unused_imports)] // Will be used in Task 9 for ACME integration
 use rustls_acme::{AcmeConfig, caches::DirCache};
 use rustls_acme::acme::{LETS_ENCRYPT_STAGING_DIRECTORY, LETS_ENCRYPT_PRODUCTION_DIRECTORY};
 use axum_server::tls_rustls::RustlsConfig;
@@ -12,7 +13,7 @@ pub struct CertificateManager {
 impl CertificateManager {
     pub async fn new(
         config: TlsConfig,
-        dns_solver: Arc<dyn DnsSolver>,
+        _dns_solver: Arc<dyn DnsSolver>,  // Will be used in Task 9 for DNS challenges
     ) -> Result<Self> {
         tracing::info!("Initializing certificate manager");
         tracing::info!("  ACME directory: {:?}", config.acme_directory());
