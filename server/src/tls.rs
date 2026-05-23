@@ -314,4 +314,107 @@ mod tests {
         std::env::remove_var("STATICHUB_DNS_API_TOKEN");
         std::env::remove_var("STATICHUB_ACME_DIRECTORY");
     }
+
+    #[test]
+    #[serial]
+    fn test_tls_enabled_requires_dns_api_token() {
+        std::env::set_var("STATICHUB_TLS_ENABLED", "true");
+        std::env::set_var("STATICHUB_TLS_EMAIL", "test@example.com");
+        std::env::set_var("STATICHUB_DNS_PROVIDER", "cloudflare");
+        std::env::remove_var("STATICHUB_DNS_API_TOKEN");
+
+        let allowed_domains = vec!["statichub.dev".to_string()];
+        let result = TlsConfig::from_env(&allowed_domains);
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("STATICHUB_DNS_API_TOKEN"));
+
+        std::env::remove_var("STATICHUB_TLS_ENABLED");
+        std::env::remove_var("STATICHUB_TLS_EMAIL");
+        std::env::remove_var("STATICHUB_DNS_PROVIDER");
+    }
+
+    #[test]
+    #[serial]
+    fn test_tls_invalid_dns_provider() {
+        std::env::set_var("STATICHUB_TLS_ENABLED", "true");
+        std::env::set_var("STATICHUB_TLS_EMAIL", "test@example.com");
+        std::env::set_var("STATICHUB_DNS_PROVIDER", "invalid_provider");
+        std::env::set_var("STATICHUB_DNS_API_TOKEN", "test_token");
+
+        let allowed_domains = vec!["statichub.dev".to_string()];
+        let result = TlsConfig::from_env(&allowed_domains);
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Unsupported DNS provider"));
+
+        std::env::remove_var("STATICHUB_TLS_ENABLED");
+        std::env::remove_var("STATICHUB_TLS_EMAIL");
+        std::env::remove_var("STATICHUB_DNS_PROVIDER");
+        std::env::remove_var("STATICHUB_DNS_API_TOKEN");
+    }
+
+    #[test]
+    #[serial]
+    fn test_tls_invalid_acme_directory() {
+        std::env::set_var("STATICHUB_TLS_ENABLED", "true");
+        std::env::set_var("STATICHUB_TLS_EMAIL", "test@example.com");
+        std::env::set_var("STATICHUB_DNS_PROVIDER", "cloudflare");
+        std::env::set_var("STATICHUB_DNS_API_TOKEN", "test_token");
+        std::env::set_var("STATICHUB_ACME_DIRECTORY", "invalid");
+
+        let allowed_domains = vec!["statichub.dev".to_string()];
+        let result = TlsConfig::from_env(&allowed_domains);
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Invalid STATICHUB_ACME_DIRECTORY"));
+
+        std::env::remove_var("STATICHUB_TLS_ENABLED");
+        std::env::remove_var("STATICHUB_TLS_EMAIL");
+        std::env::remove_var("STATICHUB_DNS_PROVIDER");
+        std::env::remove_var("STATICHUB_DNS_API_TOKEN");
+        std::env::remove_var("STATICHUB_ACME_DIRECTORY");
+    }
+
+    #[test]
+    #[serial]
+    fn test_tls_invalid_port() {
+        std::env::set_var("STATICHUB_TLS_ENABLED", "true");
+        std::env::set_var("STATICHUB_TLS_EMAIL", "test@example.com");
+        std::env::set_var("STATICHUB_TLS_PORT", "not_a_number");
+        std::env::set_var("STATICHUB_DNS_PROVIDER", "cloudflare");
+        std::env::set_var("STATICHUB_DNS_API_TOKEN", "test_token");
+
+        let allowed_domains = vec!["statichub.dev".to_string()];
+        let result = TlsConfig::from_env(&allowed_domains);
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("Invalid STATICHUB_TLS_PORT"));
+
+        std::env::remove_var("STATICHUB_TLS_ENABLED");
+        std::env::remove_var("STATICHUB_TLS_EMAIL");
+        std::env::remove_var("STATICHUB_TLS_PORT");
+        std::env::remove_var("STATICHUB_DNS_PROVIDER");
+        std::env::remove_var("STATICHUB_DNS_API_TOKEN");
+    }
+
+    #[test]
+    #[serial]
+    fn test_tls_no_valid_domains() {
+        std::env::set_var("STATICHUB_TLS_ENABLED", "true");
+        std::env::set_var("STATICHUB_TLS_EMAIL", "test@example.com");
+        std::env::set_var("STATICHUB_DNS_PROVIDER", "cloudflare");
+        std::env::set_var("STATICHUB_DNS_API_TOKEN", "test_token");
+
+        let allowed_domains = vec!["localhost".to_string(), "127.0.0.1".to_string()];
+        let result = TlsConfig::from_env(&allowed_domains);
+
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("No valid domains for TLS certificates"));
+
+        std::env::remove_var("STATICHUB_TLS_ENABLED");
+        std::env::remove_var("STATICHUB_TLS_EMAIL");
+        std::env::remove_var("STATICHUB_DNS_PROVIDER");
+        std::env::remove_var("STATICHUB_DNS_API_TOKEN");
+    }
 }
