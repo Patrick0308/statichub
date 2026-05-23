@@ -33,7 +33,7 @@
    - 可以通过域名根路径（`https://xxx.statichub.dev/`）直接访问
 
 2. **文件类型限制**
-   - 仅支持 `.html` 扩展名的文件
+   - 仅支持 `.html` 和 `.htm` 扩展名的文件（小写）
    - 其他文件类型（`.txt`, `.pdf`, `.js` 等）应返回清晰的错误信息
 
 3. **向后兼容**
@@ -43,7 +43,7 @@
 ### 非功能性需求
 
 1. **错误消息清晰**
-   - 非 HTML 文件应返回明确的错误："Single file deployment only supports .html files"
+   - 非 HTML 文件应返回明确的错误："Single file deployment only supports .html and .htm files"
 
 2. **性能**
    - 单文件部署应与小型目录部署性能相当
@@ -57,9 +57,9 @@
 **核心逻辑：**
 - 在 `collect_files()` 函数开始时检测路径是文件还是目录
 - 如果是文件：
-  - 检查扩展名是否为 `.html`
-  - 如果不是 `.html`，返回错误
-  - 如果是 `.html`，读取文件内容，创建一个路径为 `index.html` 的 `UploadFile`
+  - 检查扩展名是否为 `.html` 或 `.htm`
+  - 如果不是 `.html` 或 `.htm`，返回错误
+  - 如果是 `.html` 或 `.htm`，读取文件内容，创建一个路径为 `index.html` 的 `UploadFile`
 - 如果是目录：使用现有的 `WalkDir` 逻辑
 
 ### 实现细节
@@ -81,9 +81,9 @@ pub fn collect_files(dir: &Path) -> Result<Vec<UploadFile>> {
             .and_then(|s| s.to_str())
             .unwrap_or("");
 
-        if extension != "html" {
+        if extension != "html" && extension != "htm" {
             anyhow::bail!(
-                "Single file deployment only supports .html files. Got: .{}",
+                "Single file deployment only supports .html and .htm files. Got: .{}",
                 extension
             );
         }
@@ -148,12 +148,12 @@ pub fn collect_files(dir: &Path) -> Result<Vec<UploadFile>> {
    - `read_to_end()` 会返回错误
    - 错误传播处理
 
-3. **非 .html 文件**
-   - 返回明确的错误信息："Single file deployment only supports .html files. Got: .{extension}"
+3. **非 .html/.htm 文件**
+   - 返回明确的错误信息："Single file deployment only supports .html and .htm files. Got: .{extension}"
    - 用户需要部署目录而不是单个文件
 
 4. **无扩展名的文件**
-   - 视为非 .html 文件，返回错误
+   - 视为非 .html/.htm 文件，返回错误
 
 5. **空 HTML 文件**
    - 允许部署，服务器会提供空的 `index.html`
@@ -163,9 +163,9 @@ pub fn collect_files(dir: &Path) -> Result<Vec<UploadFile>> {
 1. **符号链接**
    - `Path::is_file()` 会跟随符号链接，正常处理
 
-2. **大写扩展名（.HTML）**
+2. **大写扩展名（.HTML/.HTM）**
    - 不匹配，返回错误
-   - 未来可以扩展为支持大小写不敏感
+   - 本次只支持小写扩展名
 
 3. **部署到已有项目**
    - 替换整个项目（创建新版本，只有 index.html）
@@ -206,11 +206,28 @@ fn test_reject_non_html_file() {
     let result = collect_files(&file_path);
 
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("only supports .html files"));
+    assert!(result.unwrap_err().to_string().contains("only supports .html and .htm files"));
 }
 ```
 
-3. **测试无扩展名文件**
+3. **测试 .htm 文件**
+
+```rust
+#[test]
+fn test_collect_single_htm_file() {
+    let temp = TempDir::new().unwrap();
+    let file_path = temp.path().join("page.htm");
+    fs::write(&file_path, b"<html><body>HTM file</body></html>").unwrap();
+
+    let files = collect_files(&file_path).unwrap();
+
+    assert_eq!(files.len(), 1);
+    assert_eq!(files[0].path, "index.html");
+    assert_eq!(files[0].content, b"<html><body>HTM file</body></html>");
+}
+```
+
+4. **测试无扩展名文件**
 
 ```rust
 #[test]
@@ -222,11 +239,11 @@ fn test_reject_no_extension_file() {
     let result = collect_files(&file_path);
 
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("only supports .html files"));
+    assert!(result.unwrap_err().to_string().contains("only supports .html and .htm files"));
 }
 ```
 
-4. **测试现有目录逻辑不受影响**
+5. **测试现有目录逻辑不受影响**
    - 使用现有的目录测试用例
    - 确保所有现有测试仍然通过
 
@@ -258,7 +275,7 @@ $ statichub deploy ~/Downloads/page.html
 ```bash
 $ statichub deploy ~/Downloads/document.pdf
 📦 Collecting files from /Users/patrick/Downloads/document.pdf...
-Error: Single file deployment only supports .html files. Got: .pdf
+Error: Single file deployment only supports .html and .htm files. Got: .pdf
 ```
 
 ### 部署到已有项目
@@ -282,7 +299,7 @@ $ statichub deploy ~/Downloads/new-page.html --name my-app
 
 - **1 个文件修改：** `cli/src/upload.rs`
 - **约 20 行新代码**（单文件检测逻辑）
-- **3-4 个新单元测试**
+- **4-5 个新单元测试**
 
 ### 不影响的部分
 
@@ -326,9 +343,9 @@ $ statichub deploy ~/Downloads/new-page.html --name my-app
 
 ## 未来扩展（本次不实现）
 
-1. **支持更多文件类型**
-   - 可以扩展到支持 `.htm`、`.HTML` 等
-   - 可以支持大小写不敏感
+1. **大小写不敏感支持**
+   - 可以扩展为支持 `.HTML`、`.HTM` 等大写扩展名
+   - 或支持混合大小写如 `.Html`
 
 2. **智能文件名处理**
    - 如果部署 `about.html`，也可以在 `/about` 访问
