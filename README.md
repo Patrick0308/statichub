@@ -27,6 +27,9 @@ statichub deploy ./dist
 
 # Deploy with config file
 statichub deploy ./build --config statichub.yaml
+
+# Deploy a single HTML file
+statichub deploy ~/my-page.html
 ```
 
 You'll get a unique URL like `https://x7k2m9.statichub.dev` that expires after 24 hours.
