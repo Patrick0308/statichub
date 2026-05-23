@@ -39,7 +39,9 @@ struct CreateDnsRecord {
 struct DnsRecord {
     id: String,
     #[serde(rename = "type")]
+    #[allow(dead_code)]
     record_type: String,
+    #[allow(dead_code)]
     name: String,
     content: String,
 }
@@ -132,6 +134,10 @@ impl DnsSolver for CloudflareSolver {
             .await
             .context("Failed to create TXT record")?;
 
+        if !response.status().is_success() {
+            bail!("Cloudflare API returned status: {}", response.status());
+        }
+
         let api_response: CloudflareResponse<serde_json::Value> = response
             .json()
             .await
@@ -168,12 +174,22 @@ impl DnsSolver for CloudflareSolver {
             .await
             .context("Failed to list TXT records")?;
 
+        if !response.status().is_success() {
+            bail!("Cloudflare API returned status: {}", response.status());
+        }
+
         let api_response: CloudflareResponse<Vec<DnsRecord>> = response
             .json()
             .await
             .context("Failed to parse Cloudflare response")?;
 
         if !api_response.success {
+            if let Some(errors) = api_response.errors {
+                let error_msgs: Vec<String> = errors.iter()
+                    .map(|e| e.message.clone())
+                    .collect();
+                bail!("Failed to list TXT records: {}", error_msgs.join(", "));
+            }
             bail!("Failed to list TXT records");
         }
 
@@ -196,12 +212,22 @@ impl DnsSolver for CloudflareSolver {
             .await
             .context("Failed to delete TXT record")?;
 
+        if !response.status().is_success() {
+            bail!("Cloudflare API returned status: {}", response.status());
+        }
+
         let api_response: CloudflareResponse<serde_json::Value> = response
             .json()
             .await
             .context("Failed to parse Cloudflare response")?;
 
         if !api_response.success {
+            if let Some(errors) = api_response.errors {
+                let error_msgs: Vec<String> = errors.iter()
+                    .map(|e| e.message.clone())
+                    .collect();
+                bail!("Failed to delete TXT record: {}", error_msgs.join(", "));
+            }
             bail!("Failed to delete TXT record");
         }
 
