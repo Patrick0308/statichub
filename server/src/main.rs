@@ -112,11 +112,36 @@ async fn serve() -> anyhow::Result<()> {
             statichub_server::middleware::host_validation_middleware,
         ));
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], config.port));
-    tracing::info!("🚀 Server listening on {}", addr);
+    // Check if TLS is enabled
+    use statichub_server::tls::{TlsConfig, CloudflareSolver, CertificateManager};
 
-    let listener = tokio::net::TcpListener::bind(addr).await?;
-    axum::serve(listener, app).await?;
+    if let Some(tls_config) = TlsConfig::from_env(&config.allowed_domains)? {
+        // TLS mode
+        tracing::info!("🔒 TLS enabled");
+
+        // Create DNS solver
+        let dns_solver = Arc::new(CloudflareSolver::new(
+            tls_config.dns_api_token().to_string()
+        )) as Arc<dyn statichub_server::tls::DnsSolver>;
+
+        // Initialize certificate manager
+        let cert_manager = CertificateManager::new(tls_config.clone(), dns_solver).await?;
+
+        let addr = SocketAddr::from(([0, 0, 0, 0], tls_config.port()));
+        tracing::info!("🚀 Server listening on {} (HTTPS)", addr);
+
+        // Start server with TLS
+        axum_server::bind_rustls(addr, cert_manager.rustls_config())
+            .serve(app.into_make_service())
+            .await?;
+    } else {
+        // HTTP mode (existing code)
+        let addr = SocketAddr::from(([0, 0, 0, 0], config.port));
+        tracing::info!("🚀 Server listening on {} (HTTP)", addr);
+
+        let listener = tokio::net::TcpListener::bind(addr).await?;
+        axum::serve(listener, app).await?;
+    }
 
     Ok(())
 }
