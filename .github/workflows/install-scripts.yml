@@ -1,0 +1,34 @@
+name: Install Scripts
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  validate-unix-installer:
+    name: Validate install.sh
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Shell syntax check
+        run: sh -n install.sh
+
+      - name: Help output (default)
+        run: sh install.sh --help | grep -q "Install target (default: cli)"
+
+      - name: Help output (short scope argument)
+        run: sh install.sh server --help | grep -q "Install target (default: cli)"
+
+      - name: Help output (long scope option)
+        run: sh install.sh --scope both --help | grep -q "Install target (default: cli)"
+
+      - name: Reject invalid scope
+        run: |
+          if sh install.sh nope --help >/dev/null 2>&1; then
+            echo "Expected invalid scope to fail"
+            exit 1
+          fi

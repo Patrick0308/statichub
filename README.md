@@ -47,6 +47,34 @@ statichub deploy ./dist --name my-app
 
 ## Installation
 
+### One-line Install (Recommended)
+
+**Unix/Linux/macOS**
+```bash
+# Install CLI only (default)
+curl -sSL https://raw.githubusercontent.com/Patrick0308/statichub/main/install.sh | sh
+
+# Install server only
+curl -sSL https://raw.githubusercontent.com/Patrick0308/statichub/main/install.sh | sh -s server
+
+# Install both CLI + server
+curl -sSL https://raw.githubusercontent.com/Patrick0308/statichub/main/install.sh | sh -s both
+```
+
+**Windows (PowerShell)**
+```powershell
+# Install CLI only (default)
+irm https://raw.githubusercontent.com/Patrick0308/statichub/main/install.ps1 | iex
+
+# Script parameters are supported when running file directly
+# e.g. .\install.ps1 both
+```
+
+Scope values:
+- `cli` (default): install `statichub`
+- `server`: install `statichub-server`
+- `both`: install both binaries
+
 ### Pre-built Binaries
 
 Download the latest release for your platform from the [Releases page](https://github.com/Patrick0308/statichub/releases).
