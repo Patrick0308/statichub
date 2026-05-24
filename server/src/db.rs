@@ -129,7 +129,7 @@ mod tests {
             .map(|row| row.get::<String, _>("name"))
             .collect();
 
-        let expected_tables = vec!["users", "projects", "deploys", "domains", "deploy_tokens", "oauth_sessions"];
+        let expected_tables = vec!["users", "projects", "deploys", "deploy_tokens", "oauth_sessions"];
         for table in expected_tables {
             assert!(
                 table_names.contains(&table.to_string()),

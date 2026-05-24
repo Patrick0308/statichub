@@ -2,14 +2,13 @@
 
 > Static web publishing for front-end developers
 
-StaticHub is a static site hosting platform similar to Surge and GitHub Pages. Deploy your static sites with a single command, manage custom domains, and track deployment versions.
+StaticHub is a static site hosting platform similar to Surge and GitHub Pages. Deploy your static sites with a single command and track deployment versions.
 
 ## Features
 
 - **🚀 Instant Deploys** - Deploy static sites with one command
 - **🔓 Anonymous Deploys** - Quick deployments without login (free tier)
 - **🔐 Authenticated Projects** - Manage named projects with Google OAuth
-- **🌐 Custom Domains** - Map your own domains with file-based verification
 - **📦 Version Management** - Keep deployment history and rollback instantly
 - **⚙️ Project Configuration** - Clean URLs, SPA mode, redirects, custom headers
 - **📝 Deploy History** - Track all deployments with metadata
@@ -127,7 +126,6 @@ cp server/.env.example server/.env
 The server can serve multiple domains. Each domain in `STATICHUB_ALLOWED_DOMAINS` will:
 - Accept deployments via CLI (using `STATICHUB_SERVER` environment variable)
 - Serve static content based on hostname routing
-- Support custom domain mappings
 
 Example for production:
 ```bash
@@ -202,22 +200,6 @@ statichub info <project>
 statichub rollback <project> <version>
 ```
 
-### Custom Domains
-
-```bash
-# Add a custom domain
-statichub domain add <project> example.com
-
-# List domains for a project
-statichub domain list <project>
-
-# Verify domain ownership
-statichub domain verify <project> example.com
-
-# Remove a domain
-statichub domain remove <project> example.com
-```
-
 ## Configuration
 
 Create a `statichub.yaml` file in your project root:
@@ -278,31 +260,6 @@ directory_index:
 **directory_index** (array, default: `["index.html"]`)
 - Files to serve for directory requests
 
-## Custom Domain Setup
-
-1. **Add your domain:**
-   ```bash
-   statichub domain add my-app example.com
-   ```
-
-2. **Create verification file:**
-
-   Add a file named `statichub-verify.txt` to your site root containing the verification token shown in step 1.
-
-3. **Deploy with verification file:**
-   ```bash
-   statichub deploy ./dist --name my-app
-   ```
-
-4. **Verify domain ownership:**
-   ```bash
-   statichub domain verify my-app example.com
-   ```
-
-5. **Configure DNS:**
-
-   Point your domain to StaticHub (exact configuration provided by your server admin).
-
 ## Architecture
 
 StaticHub is built with:
@@ -343,9 +300,6 @@ cargo test -p statichub-server
 
 # Run CLI tests only
 cargo test -p statichub
-
-# Run specific test
-cargo test test_add_domain
 ```
 
 ### Environment Variables
@@ -524,13 +478,6 @@ sqlx migrate revert
 - `GET /api/projects/:name` - Get project details
 - `POST /api/projects/:name/rollback` - Rollback to version
 
-### Domains (Authenticated)
-
-- `POST /api/projects/:name/domains` - Add custom domain
-- `GET /api/projects/:name/domains` - List project domains
-- `POST /api/projects/:name/domains/:domain/verify` - Verify domain
-- `DELETE /api/projects/:name/domains/:domain` - Remove domain
-
 ### Static File Serving
 
 - `GET /*` - Serve static files (hostname-based routing)
@@ -541,7 +488,6 @@ sqlx migrate revert
 - **OAuth 2.0** - Industry-standard authentication via Google
 - **Project Ownership** - All operations validate user ownership
 - **Path Traversal Protection** - Canonical path validation prevents directory escaping
-- **Domain Verification** - File-based verification prevents domain hijacking
 - **SQL Injection Prevention** - All queries use parameterized statements
 
 ## Roadmap

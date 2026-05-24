@@ -52,45 +52,6 @@ enum Commands {
         /// Version to rollback to
         version: i64,
     },
-
-    /// Manage custom domains
-    Domain {
-        #[command(subcommand)]
-        command: DomainCommands,
-    },
-}
-
-#[derive(Subcommand)]
-enum DomainCommands {
-    /// Add a custom domain to a project
-    Add {
-        /// Project name
-        project: String,
-        /// Domain name (e.g., example.com)
-        domain: String,
-    },
-
-    /// List domains for a project
-    List {
-        /// Project name
-        project: String,
-    },
-
-    /// Verify DNS configuration for a domain
-    Verify {
-        /// Project name
-        project: String,
-        /// Domain name
-        domain: String,
-    },
-
-    /// Remove a custom domain
-    Remove {
-        /// Project name
-        project: String,
-        /// Domain name
-        domain: String,
-    },
 }
 
 #[tokio::main]
@@ -288,80 +249,6 @@ async fn main() -> anyhow::Result<()> {
             println!("✅ Rollback successful!");
             println!("   {} is now at version {}", info.name, info.current_version.unwrap_or(0));
             println!("   URL: {}", info.url);
-        }
-        Commands::Domain { command } => {
-            let credentials = auth::load_credentials()?
-                .ok_or_else(|| anyhow::anyhow!("Not logged in. Run 'statichub login' first."))?;
-
-            let server_url = std::env::var("STATICHUB_SERVER")
-                .unwrap_or_else(|_| "https://statichub.dev".to_string());
-
-            let client = client::Client::new(server_url);
-
-            match command {
-                DomainCommands::Add { project, domain } => {
-                    println!("🌐 Adding domain {} to {}...", domain, project);
-
-                    let response = client
-                        .add_domain(&project, &domain, &credentials.access_token)
-                        .await?;
-
-                    println!("✅ Domain added successfully!");
-                    println!("   Domain: {}", response.domain);
-                    println!("   Project: {}", response.project_name);
-                    println!("   DNS Target: {}", response.dns_target);
-                    println!("\n📋 Next steps:");
-                    println!("   1. Add a CNAME record pointing {} to {}", response.domain, response.dns_target);
-                    println!("   2. Run: statichub domain verify {} {}", project, domain);
-                }
-                DomainCommands::List { project } => {
-                    let domains = client
-                        .list_domains(&project, &credentials.access_token)
-                        .await?;
-
-                    if domains.is_empty() {
-                        println!("📭 No custom domains configured");
-                        println!("   Add one with: statichub domain add {} yourdomain.com", project);
-                    } else {
-                        println!("🌐 Custom domains for {}:\n", project);
-                        for domain in domains {
-                            let status = if domain.verified { "✅ Verified" } else { "⏳ Pending" };
-                            println!("  {} - {}", domain.domain, status);
-                            println!("    DNS Target: {}", domain.dns_target);
-                            println!("    Added: {}", domain.created_at);
-                            if let Some(verified_at) = domain.verified_at {
-                                println!("    Verified: {}", verified_at);
-                            }
-                            println!();
-                        }
-                    }
-                }
-                DomainCommands::Verify { project, domain } => {
-                    println!("🔍 Verifying DNS for {}...", domain);
-
-                    let response = client
-                        .verify_domain(&project, &domain, &credentials.access_token)
-                        .await?;
-
-                    if response.verified {
-                        println!("✅ Domain verified successfully!");
-                        println!("   Your site is now accessible at https://{}", response.domain);
-                    } else {
-                        println!("❌ Domain verification failed");
-                        println!("   Make sure you have a CNAME record pointing {} to {}", response.domain, response.dns_target);
-                        println!("   DNS changes can take up to 48 hours to propagate");
-                    }
-                }
-                DomainCommands::Remove { project, domain } => {
-                    println!("🗑️  Removing domain {} from {}...", domain, project);
-
-                    client
-                        .remove_domain(&project, &domain, &credentials.access_token)
-                        .await?;
-
-                    println!("✅ Domain removed successfully!");
-                }
-            }
         }
     }
 

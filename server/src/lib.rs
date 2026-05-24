@@ -11,7 +11,7 @@ pub mod tls;
 // Test utilities available for integration tests
 pub mod test_utils;
 
-use axum::{middleware as axum_middleware, routing::{delete, get, post}, Router};
+use axum::{middleware as axum_middleware, routing::{get, post}, Router};
 use std::sync::Arc;
 use tower_http::trace::{DefaultMakeSpan, TraceLayer};
 
@@ -35,10 +35,6 @@ pub fn create_router(
         .route("/api/projects", get(api::list_projects))
         .route("/api/projects/:name", get(api::get_project_info))
         .route("/api/projects/:name/rollback", post(api::rollback_project))
-        .route("/api/projects/:name/domains", post(api::add_domain))
-        .route("/api/projects/:name/domains", get(api::list_domains))
-        .route("/api/projects/:name/domains/:domain/verify", post(api::verify_domain))
-        .route("/api/projects/:name/domains/:domain", delete(api::remove_domain))
         .layer(axum_middleware::from_fn_with_state(
             auth_state.clone(),
             middleware::auth_middleware,

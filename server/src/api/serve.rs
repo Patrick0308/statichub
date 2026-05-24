@@ -2,7 +2,7 @@ use crate::{
     api::DeployState,
     error::{AppError, Result},
     middleware::RequestHost,
-    models::{Domain, Project},
+    models::Project,
     storage::Storage,
 };
 use axum::{
@@ -12,40 +12,6 @@ use axum::{
 };
 use std::sync::Arc;
 use statichub_shared::ProjectConfig;
-
-/// Try to find a project via custom domain
-async fn try_custom_domain(
-    hostname: &str,
-    base_domain: &str,
-    state: &Arc<DeployState>,
-) -> Result<Option<Project>> {
-    // If hostname ends with base domain, it's not a custom domain
-    if hostname.ends_with(base_domain) {
-        return Ok(None);
-    }
-
-    // Look up domain in database
-    let domain = match Domain::find_by_domain(&state.pool, hostname).await? {
-        Some(d) => d,
-        None => return Ok(None),
-    };
-
-    // Only serve if domain is verified
-    if domain.status != "verified" {
-        return Err(AppError::BadRequest(
-            "Domain is not verified".to_string()
-        ));
-    }
-
-    // Find project by domain's project_id
-    let project = Project::find_by_id(&state.pool, domain.project_id)
-        .await?
-        .ok_or_else(|| AppError::NotFound(
-            format!("Project not found for domain: {}", hostname)
-        ))?;
-
-    Ok(Some(project))
-}
 
 pub async fn serve_static_file(
     Host(hostname): Host,
@@ -60,16 +26,11 @@ pub async fn serve_static_file(
 
     let base_domain = &request_host.base_domain;
 
-    // Try custom domain first
-    let project = if let Some(proj) = try_custom_domain(&hostname, base_domain, &state).await? {
-        proj
-    } else {
-        // Fall back to subdomain lookup (now simple: just identifier)
-        let subdomain = extract_subdomain(&hostname, base_domain)?;
-        Project::find_by_subdomain(&state.pool, &subdomain)
-            .await?
-            .ok_or_else(|| AppError::NotFound(format!("Project not found: {}", subdomain)))?
-    };
+    // Subdomain lookup
+    let subdomain = extract_subdomain(&hostname, base_domain)?;
+    let project = Project::find_by_subdomain(&state.pool, &subdomain)
+        .await?
+        .ok_or_else(|| AppError::NotFound(format!("Project not found: {}", subdomain)))?;
 
     // Get project config
     let config = project.get_config().unwrap_or_default();
