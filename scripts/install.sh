@@ -11,10 +11,10 @@ usage() {
 StaticHub installer (Unix/Linux/macOS)
 
 Usage:
-  curl -sSL https://raw.githubusercontent.com/Patrick0308/statichub/main/install.sh | sh
-  curl -sSL https://raw.githubusercontent.com/Patrick0308/statichub/main/install.sh | sh -s server
-  curl -sSL https://raw.githubusercontent.com/Patrick0308/statichub/main/install.sh | sh -s both
-  curl -sSL https://raw.githubusercontent.com/Patrick0308/statichub/main/install.sh | sh -s -- -s both
+  curl -sSL https://raw.githubusercontent.com/Patrick0308/statichub/main/scripts/install.sh | sh
+  curl -sSL https://raw.githubusercontent.com/Patrick0308/statichub/main/scripts/install.sh | sh -s server
+  curl -sSL https://raw.githubusercontent.com/Patrick0308/statichub/main/scripts/install.sh | sh -s both
+  curl -sSL https://raw.githubusercontent.com/Patrick0308/statichub/main/scripts/install.sh | sh -s -- -s both
 
 Options:
   -s, --scope <cli|server|both>   Install target (default: cli)

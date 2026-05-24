@@ -52,22 +52,22 @@ statichub deploy ./dist --name my-app
 **Unix/Linux/macOS**
 ```bash
 # Install CLI only (default)
-curl -sSL https://raw.githubusercontent.com/Patrick0308/statichub/main/install.sh | sh
+curl -sSL https://raw.githubusercontent.com/Patrick0308/statichub/main/scripts/install.sh | sh
 
 # Install server only
-curl -sSL https://raw.githubusercontent.com/Patrick0308/statichub/main/install.sh | sh -s server
+curl -sSL https://raw.githubusercontent.com/Patrick0308/statichub/main/scripts/install.sh | sh -s server
 
 # Install both CLI + server
-curl -sSL https://raw.githubusercontent.com/Patrick0308/statichub/main/install.sh | sh -s both
+curl -sSL https://raw.githubusercontent.com/Patrick0308/statichub/main/scripts/install.sh | sh -s both
 ```
 
 **Windows (PowerShell)**
 ```powershell
 # Install CLI only (default)
-irm https://raw.githubusercontent.com/Patrick0308/statichub/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/Patrick0308/statichub/main/scripts/install.ps1 | iex
 
 # Script parameters are supported when running file directly
-# e.g. .\install.ps1 both
+# e.g. .\scripts\install.ps1 both
 ```
 
 Scope values:
