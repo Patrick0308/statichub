@@ -112,7 +112,7 @@ directory_index:
 Create `.env` values and start server:
 
 ```bash
-cp server/.env.example server/.env
+cp .env.example .env
 statichub-server db init
 statichub-server serve
 ```

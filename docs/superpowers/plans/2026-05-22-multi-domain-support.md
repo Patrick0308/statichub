@@ -1098,13 +1098,13 @@ Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>"
 ## Task 15: Update Documentation
 
 **Files:**
-- Create: `server/.env.example` (or modify if exists)
+- Create: `.env.example` (or modify if exists)
 - Modify: `README.md`
 
 - [ ] **Step 1: Create/update .env.example**
 
 ```bash
-# server/.env.example
+# .env.example
 
 # Database
 DATABASE_URL=sqlite:statichub.db
@@ -1134,7 +1134,7 @@ JWT_SECRET=your_jwt_secret_here_use_a_long_random_string
 
 ```bash
 # Set up environment variables
-cp server/.env.example server/.env
+cp .env.example .env
 # Edit .env with your configuration
 
 # Initialize database (first time only)
@@ -1204,7 +1204,7 @@ When clients deploy through different domains, they receive domain-specific URLs
 - [ ] **Step 4: Commit documentation updates**
 
 ```bash
-git add server/.env.example README.md
+git add .env.example README.md
 git commit -m "docs: update for multi-domain support
 
 - Add PORT and ALLOWED_DOMAINS to .env.example

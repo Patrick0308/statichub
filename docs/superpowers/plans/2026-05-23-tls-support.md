@@ -23,7 +23,7 @@
 - `server/src/lib.rs` - Export tls module
 - `server/src/main.rs` - Integrate TLS startup logic
 - `server/src/cli.rs` - Add TLS subcommands (renew, status)
-- `server/.env.example` - Add TLS configuration examples
+- `.env.example` - Add TLS configuration examples
 - `README.md` - Document TLS setup
 
 ---
@@ -1486,12 +1486,12 @@ git commit -m "feat(tls): add TLS CLI subcommands (renew, status)"
 ### Task 12: Documentation and Configuration Examples
 
 **Files:**
-- Modify: `server/.env.example`
+- Modify: `.env.example`
 - Modify: `README.md`
 
 - [ ] **Step 1: Update .env.example with TLS variables**
 
-Add to `server/.env.example` after existing variables:
+Add to `.env.example` after existing variables:
 
 ```bash
 # TLS Configuration (optional)
@@ -1611,7 +1611,7 @@ Certificates are automatically renewed 30 days before expiration.
 - [ ] **Step 3: Commit documentation**
 
 ```bash
-git add server/.env.example README.md
+git add .env.example README.md
 git commit -m "docs: add TLS configuration documentation"
 ```
 
