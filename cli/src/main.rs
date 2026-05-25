@@ -20,6 +20,9 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Print version
+    Version,
+
     /// Deploy static files
     Deploy {
         /// Directory to deploy (default: current directory)
@@ -74,6 +77,9 @@ async fn main() -> anyhow::Result<()> {
     };
 
     match command {
+        Commands::Version => {
+            println!("{}", env!("CARGO_PKG_VERSION"));
+        }
         Commands::Deploy { directory, name, config: config_path } => {
             let dir = if let Some(d) = directory.as_ref() {
                 std::path::PathBuf::from(d)
