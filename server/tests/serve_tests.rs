@@ -607,6 +607,11 @@ async fn test_base_domain_home_asset_serves_css(pool: SqlitePool) {
         response.headers().get("content-type").unwrap(),
         "text/css; charset=utf-8"
     );
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    let css = String::from_utf8(body.to_vec()).unwrap();
+    assert!(!css.is_empty());
+    // Stable token choice: "body" should exist in any meaningful global stylesheet.
+    assert!(css.contains("body"));
 }
 
 #[sqlx::test]
@@ -648,4 +653,10 @@ async fn test_subdomain_root_still_serves_project_index(pool: SqlitePool) {
         .unwrap();
 
     assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response.headers().get("content-type").unwrap(),
+        "text/html"
+    );
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+    assert_eq!(&body[..], b"<h1>Project Home</h1>");
 }
