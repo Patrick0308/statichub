@@ -628,7 +628,9 @@ async fn test_base_domain_root_serves_homepage(pool: SqlitePool) {
         .await
         .unwrap();
     let html = String::from_utf8(body.to_vec()).unwrap();
-    assert!(html.contains("From AI prompt to production URL."));
+    assert!(html.contains("AI-generated content"));
+    assert!(html.contains("auto-published."));
+    assert!(html.contains("id=\"hero\""));
     assert!(html.contains("/__home/home.css"));
     assert!(html.contains("/__home/home.js"));
     assert!(html.contains("id=\"quickstart\""));
@@ -696,8 +698,8 @@ async fn test_base_domain_home_asset_serves_css(pool: SqlitePool) {
         .unwrap();
     let css = String::from_utf8(body.to_vec()).unwrap();
     assert!(!css.is_empty());
-    assert!(css.contains("--accent-ink: #08384e;"));
-    assert!(css.contains(".intro-strip"));
+    assert!(css.contains("--accent: #2f80ed;"));
+    assert!(css.contains(".hero"));
     assert!(css.contains(".tab-btn.is-active"));
 }
 
