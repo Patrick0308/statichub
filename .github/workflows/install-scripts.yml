@@ -18,13 +18,16 @@ jobs:
         run: sh -n scripts/install.sh
 
       - name: Help output (default)
-        run: sh scripts/install.sh --help | grep -q "Install target (default: cli)"
+        run: |
+          sh scripts/install.sh --help | grep -q "Install target (default: cli)"
 
       - name: Help output (short scope argument)
-        run: sh scripts/install.sh server --help | grep -q "Install target (default: cli)"
+        run: |
+          sh scripts/install.sh server --help | grep -q "Install target (default: cli)"
 
       - name: Help output (long scope option)
-        run: sh scripts/install.sh --scope both --help | grep -q "Install target (default: cli)"
+        run: |
+          sh scripts/install.sh --scope both --help | grep -q "Install target (default: cli)"
 
       - name: Reject invalid scope
         run: |
