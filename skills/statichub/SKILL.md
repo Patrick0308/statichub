@@ -20,6 +20,8 @@ description: Deploy AI-generated static assets with StaticHub CLI. Use when a us
 1. Check CLI:
    - `command -v statichub`
    - `statichub --help`
+   - If missing, install with one line:
+     - `curl -sSL https://raw.githubusercontent.com/Patrick0308/statichub/main/scripts/install.sh | sh`
 2. Validate `<path>` exists and is valid.
 3. Run deploy:
    - Named: `statichub deploy <path> --name <project>`
