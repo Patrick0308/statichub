@@ -22,6 +22,17 @@ Deploy a single HTML file:
 statichub deploy ~/Downloads/page.html
 ```
 
+Output:
+
+```text
+📦 Collecting files from /Users/patrick/Downloads/page.html...
+   Found 1 files
+🚀 Deploying to https://statichub.dev...
+✅ Deploy successful!
+   URL: http://b7kr7b.statichub.dev
+   Subdomain: b7kr7b
+```
+
 Login and deploy to a named project:
 
 ```bash
