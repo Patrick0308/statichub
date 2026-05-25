@@ -23,10 +23,11 @@
     <main class="wrap main">
       <section class="intro-strip">
         <p class="intro-line">From AI prompt to production URL.</p>
+        <p class="intro-trust">Built for AI coding workflows.</p>
         <p class="intro-subline">Use Statichub Skill in your AI workflow, or Statichub CLI in your terminal.</p>
         <div class="intro-actions">
-          <a class="intro-cta intro-cta-primary" href="#install">Install CLI</a>
-          <a class="intro-cta intro-cta-secondary" href="#quickstart">Use Skill</a>
+          <a class="intro-cta intro-cta-primary" href="#install" data-analytics="install-primary">Install CLI</a>
+          <a class="intro-cta intro-cta-secondary" href="#quickstart" data-analytics="use-skill">Use Skill</a>
         </div>
       </section>
 
@@ -44,9 +45,9 @@
 
           <article class="tab-panel is-active" data-tab-panel="skill" role="tabpanel">
             <ol>
-              <li>Install Statichub CLI.</li>
-              <li>Open your AI pair programmer and ask it to deploy this folder.</li>
-              <li>Approve the command and get your live subdomain.</li>
+              <li data-quickstart-step="1">Install Statichub CLI.</li>
+              <li data-quickstart-step="2">Open your AI pair programmer and ask it to deploy this folder.</li>
+              <li data-quickstart-step="3">Approve the command and get your live subdomain.</li>
             </ol>
             <div class="code-block">
               <code id="quickstart-skill-cmd">statichub deploy --ai .</code>
@@ -56,9 +57,9 @@
 
           <article class="tab-panel" data-tab-panel="cli" role="tabpanel">
             <ol>
-              <li>Install the CLI and sign in.</li>
-              <li>Deploy any folder from your terminal.</li>
-              <li>Redeploy updates in seconds.</li>
+              <li data-quickstart-step="1">Install the CLI and sign in.</li>
+              <li data-quickstart-step="2">Deploy any folder from your terminal.</li>
+              <li data-quickstart-step="3">Redeploy updates in seconds.</li>
             </ol>
             <div class="code-block">
               <code id="quickstart-cli-cmd">statichub deploy .</code>
@@ -85,7 +86,7 @@
             <p class="install-label">Recommended command</p>
             <div class="code-block">
               <code id="install-macos-cmd">brew install statichub/tap/statichub</code>
-              <button class="copy-btn" data-copy-target="install-macos-cmd">Copy</button>
+              <button class="copy-btn" data-copy-target="install-macos-cmd" data-os="macos">Copy</button>
             </div>
             <p class="install-fallback">Fallback: download tarball and place `statichub` in your PATH.</p>
             <p class="install-links">
@@ -98,7 +99,7 @@
             <p class="install-label">Recommended command</p>
             <div class="code-block">
               <code id="install-linux-cmd">curl -fsSL https://statichub.io/install.sh | sh</code>
-              <button class="copy-btn" data-copy-target="install-linux-cmd">Copy</button>
+              <button class="copy-btn" data-copy-target="install-linux-cmd" data-os="linux">Copy</button>
             </div>
             <p class="install-fallback">Fallback: fetch a release archive and install manually.</p>
             <p class="install-links">
@@ -111,7 +112,7 @@
             <p class="install-label">Recommended command</p>
             <div class="code-block">
               <code id="install-windows-cmd">winget install statichub.cli</code>
-              <button class="copy-btn" data-copy-target="install-windows-cmd">Copy</button>
+              <button class="copy-btn" data-copy-target="install-windows-cmd" data-os="windows">Copy</button>
             </div>
             <p class="install-fallback">Fallback: use the signed installer from GitHub Releases.</p>
             <p class="install-links">
