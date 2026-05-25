@@ -3,27 +3,32 @@ use axum::{
     http::{Request, StatusCode},
 };
 use serde_json::Value;
-use std::sync::Arc;
-use tower::ServiceExt;
+use serial_test::serial;
 use statichub_server::{
     api::{AuthState, DeployState},
     config::ServerConfig,
     create_router,
     storage::FilesystemStorage,
 };
-use serial_test::serial;
+use std::sync::Arc;
+use tower::ServiceExt;
 
 #[tokio::test]
 #[serial]
 async fn test_deploy_with_different_hosts() {
-    std::env::set_var("STATICHUB_ALLOWED_DOMAINS", "localhost,statichub.dev,example.com");
+    std::env::set_var(
+        "STATICHUB_ALLOWED_DOMAINS",
+        "localhost,statichub.dev,example.com",
+    );
 
     let pool = statichub_server::test_utils::create_test_pool()
         .await
         .unwrap();
 
     let temp_storage_dir = tempfile::tempdir().unwrap();
-    let storage = Arc::new(FilesystemStorage::new(temp_storage_dir.path().to_path_buf()));
+    let storage = Arc::new(FilesystemStorage::new(
+        temp_storage_dir.path().to_path_buf(),
+    ));
 
     let deploy_state = Arc::new(DeployState {
         pool: pool.clone(),
@@ -44,11 +49,12 @@ async fn test_deploy_with_different_hosts() {
     let config = ServerConfig::from_env().unwrap();
 
     // Create router with host validation middleware
-    let app = create_router(deploy_state.clone(), auth_state.clone())
-        .layer(axum::middleware::from_fn_with_state(
+    let app = create_router(deploy_state.clone(), auth_state.clone()).layer(
+        axum::middleware::from_fn_with_state(
             config.clone(),
             statichub_server::middleware::host_validation_middleware,
-        ));
+        ),
+    );
 
     // Test 1: Deploy via localhost:3000
     let boundary = "----WebKitFormBoundary7MA4YWxkTrZu0gW";
@@ -87,11 +93,12 @@ async fn test_deploy_with_different_hosts() {
     );
 
     // Test 2: Deploy via statichub.dev
-    let app = create_router(deploy_state.clone(), auth_state.clone())
-        .layer(axum::middleware::from_fn_with_state(
+    let app = create_router(deploy_state.clone(), auth_state.clone()).layer(
+        axum::middleware::from_fn_with_state(
             config.clone(),
             statichub_server::middleware::host_validation_middleware,
-        ));
+        ),
+    );
 
     let body = format!(
         "--{}\r\nContent-Disposition: form-data; name=\"files\"; filename=\"index.html\"\r\n\r\n<html>Test statichub.dev</html>\r\n--{}--\r\n",
@@ -140,7 +147,9 @@ async fn test_reject_unallowed_domain() {
         .unwrap();
 
     let temp_storage_dir = tempfile::tempdir().unwrap();
-    let storage = Arc::new(FilesystemStorage::new(temp_storage_dir.path().to_path_buf()));
+    let storage = Arc::new(FilesystemStorage::new(
+        temp_storage_dir.path().to_path_buf(),
+    ));
 
     let deploy_state = Arc::new(DeployState {
         pool: pool.clone(),
@@ -160,11 +169,10 @@ async fn test_reject_unallowed_domain() {
 
     let config = ServerConfig::from_env().unwrap();
 
-    let app = create_router(deploy_state, auth_state)
-        .layer(axum::middleware::from_fn_with_state(
-            config,
-            statichub_server::middleware::host_validation_middleware,
-        ));
+    let app = create_router(deploy_state, auth_state).layer(axum::middleware::from_fn_with_state(
+        config,
+        statichub_server::middleware::host_validation_middleware,
+    ));
 
     let boundary = "----WebKitFormBoundary7MA4YWxkTrZu0gW";
     let body = format!(
@@ -204,7 +212,9 @@ async fn test_missing_host_header() {
         .unwrap();
 
     let temp_storage_dir = tempfile::tempdir().unwrap();
-    let storage = Arc::new(FilesystemStorage::new(temp_storage_dir.path().to_path_buf()));
+    let storage = Arc::new(FilesystemStorage::new(
+        temp_storage_dir.path().to_path_buf(),
+    ));
 
     let deploy_state = Arc::new(DeployState {
         pool: pool.clone(),
@@ -224,11 +234,10 @@ async fn test_missing_host_header() {
 
     let config = ServerConfig::from_env().unwrap();
 
-    let app = create_router(deploy_state, auth_state)
-        .layer(axum::middleware::from_fn_with_state(
-            config,
-            statichub_server::middleware::host_validation_middleware,
-        ));
+    let app = create_router(deploy_state, auth_state).layer(axum::middleware::from_fn_with_state(
+        config,
+        statichub_server::middleware::host_validation_middleware,
+    ));
 
     let boundary = "----WebKitFormBoundary7MA4YWxkTrZu0gW";
     let body = format!(

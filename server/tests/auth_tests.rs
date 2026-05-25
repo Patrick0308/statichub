@@ -4,10 +4,13 @@ use axum::{
 };
 use serde_json::Value;
 use sqlx::SqlitePool;
+use statichub_server::storage::FilesystemStorage;
+use statichub_server::{
+    api::{AuthState, DeployState},
+    create_router,
+};
 use std::sync::Arc;
 use tower::ServiceExt;
-use statichub_server::{create_router, api::{DeployState, AuthState}};
-use statichub_server::storage::FilesystemStorage;
 
 #[sqlx::test]
 async fn test_login_initiation(pool: SqlitePool) {
@@ -48,8 +51,14 @@ async fn test_login_initiation(pool: SqlitePool) {
         .unwrap();
     let json: Value = serde_json::from_slice(&body).unwrap();
 
-    assert!(json["auth_url"].as_str().unwrap().contains("accounts.google.com"));
-    assert!(json["auth_url"].as_str().unwrap().contains("test-session-123"));
+    assert!(json["auth_url"]
+        .as_str()
+        .unwrap()
+        .contains("accounts.google.com"));
+    assert!(json["auth_url"]
+        .as_str()
+        .unwrap()
+        .contains("test-session-123"));
 }
 
 #[sqlx::test]
@@ -209,7 +218,10 @@ async fn test_duplicate_session_id_returns_conflict(pool: SqlitePool) {
     let json: Value = serde_json::from_slice(&body).unwrap();
 
     assert_eq!(json["error"], "conflict");
-    assert!(json["message"].as_str().unwrap().contains("Session ID already in use"));
+    assert!(json["message"]
+        .as_str()
+        .unwrap()
+        .contains("Session ID already in use"));
 }
 
 #[sqlx::test]

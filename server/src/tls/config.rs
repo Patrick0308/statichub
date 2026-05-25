@@ -44,7 +44,10 @@ impl TlsConfig {
 
         let dns_provider = match dns_provider_str.to_lowercase().as_str() {
             "cloudflare" => DnsProvider::Cloudflare,
-            _ => bail!("Unsupported DNS provider: {}. Supported: cloudflare", dns_provider_str),
+            _ => bail!(
+                "Unsupported DNS provider: {}. Supported: cloudflare",
+                dns_provider_str
+            ),
         };
 
         let dns_api_token = std::env::var("STATICHUB_DNS_API_TOKEN")
@@ -60,13 +63,16 @@ impl TlsConfig {
             .unwrap_or_else(|_| "./var/statichub/certs".to_string())
             .into();
 
-        let acme_directory_str = std::env::var("STATICHUB_ACME_DIRECTORY")
-            .unwrap_or_else(|_| "staging".to_string());
+        let acme_directory_str =
+            std::env::var("STATICHUB_ACME_DIRECTORY").unwrap_or_else(|_| "staging".to_string());
 
         let acme_directory = match acme_directory_str.to_lowercase().as_str() {
             "staging" => AcmeDirectory::Staging,
             "production" => AcmeDirectory::Production,
-            _ => bail!("Invalid STATICHUB_ACME_DIRECTORY: {}. Use 'staging' or 'production'", acme_directory_str),
+            _ => bail!(
+                "Invalid STATICHUB_ACME_DIRECTORY: {}. Use 'staging' or 'production'",
+                acme_directory_str
+            ),
         };
 
         // Extract domains for certificates
@@ -207,7 +213,10 @@ mod tests {
         let input = vec!["statichub.dev".to_string()];
         let output = TlsConfig::extract_certificate_domains(&input);
 
-        assert_eq!(output, vec!["statichub.dev".to_string(), "*.statichub.dev".to_string()]);
+        assert_eq!(
+            output,
+            vec!["statichub.dev".to_string(), "*.statichub.dev".to_string()]
+        );
     }
 
     #[test]
@@ -228,7 +237,10 @@ mod tests {
         ];
         let output = TlsConfig::extract_certificate_domains(&input);
 
-        assert_eq!(output, vec!["statichub.dev".to_string(), "*.statichub.dev".to_string()]);
+        assert_eq!(
+            output,
+            vec!["statichub.dev".to_string(), "*.statichub.dev".to_string()]
+        );
     }
 
     #[test]
@@ -241,11 +253,14 @@ mod tests {
 
         // Subdomains stay as-is (specific certificates)
         // Base domains get both root and wildcard
-        assert_eq!(output, vec![
-            "test.sub.statichub.dev".to_string(),
-            "example.com".to_string(),
-            "*.example.com".to_string(),
-        ]);
+        assert_eq!(
+            output,
+            vec![
+                "test.sub.statichub.dev".to_string(),
+                "example.com".to_string(),
+                "*.example.com".to_string(),
+            ]
+        );
     }
 
     #[test]
@@ -260,7 +275,10 @@ mod tests {
         let result = TlsConfig::from_env(&allowed_domains);
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("STATICHUB_TLS_EMAIL"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("STATICHUB_TLS_EMAIL"));
 
         std::env::remove_var("STATICHUB_TLS_ENABLED");
         std::env::remove_var("STATICHUB_DNS_PROVIDER");
@@ -279,7 +297,10 @@ mod tests {
         let result = TlsConfig::from_env(&allowed_domains);
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("STATICHUB_DNS_PROVIDER"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("STATICHUB_DNS_PROVIDER"));
 
         std::env::remove_var("STATICHUB_TLS_ENABLED");
         std::env::remove_var("STATICHUB_TLS_EMAIL");
@@ -331,7 +352,10 @@ mod tests {
         let result = TlsConfig::from_env(&allowed_domains);
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("STATICHUB_DNS_API_TOKEN"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("STATICHUB_DNS_API_TOKEN"));
 
         std::env::remove_var("STATICHUB_TLS_ENABLED");
         std::env::remove_var("STATICHUB_TLS_EMAIL");
@@ -350,7 +374,10 @@ mod tests {
         let result = TlsConfig::from_env(&allowed_domains);
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Unsupported DNS provider"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Unsupported DNS provider"));
 
         std::env::remove_var("STATICHUB_TLS_ENABLED");
         std::env::remove_var("STATICHUB_TLS_EMAIL");
@@ -371,7 +398,10 @@ mod tests {
         let result = TlsConfig::from_env(&allowed_domains);
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Invalid STATICHUB_ACME_DIRECTORY"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid STATICHUB_ACME_DIRECTORY"));
 
         std::env::remove_var("STATICHUB_TLS_ENABLED");
         std::env::remove_var("STATICHUB_TLS_EMAIL");
@@ -393,7 +423,10 @@ mod tests {
         let result = TlsConfig::from_env(&allowed_domains);
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("Invalid STATICHUB_TLS_PORT"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("Invalid STATICHUB_TLS_PORT"));
 
         std::env::remove_var("STATICHUB_TLS_ENABLED");
         std::env::remove_var("STATICHUB_TLS_EMAIL");
@@ -414,7 +447,10 @@ mod tests {
         let result = TlsConfig::from_env(&allowed_domains);
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("No valid domains for TLS certificates"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("No valid domains for TLS certificates"));
 
         std::env::remove_var("STATICHUB_TLS_ENABLED");
         std::env::remove_var("STATICHUB_TLS_EMAIL");

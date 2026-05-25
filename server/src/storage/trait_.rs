@@ -17,23 +17,13 @@ pub trait Storage: Send + Sync {
     ) -> Result<(), StorageError>;
 
     /// Get a file from a deploy
-    async fn get_file(
-        &self,
-        deploy_id: &str,
-        path: &str,
-    ) -> Result<Vec<u8>, StorageError>;
+    async fn get_file(&self, deploy_id: &str, path: &str) -> Result<Vec<u8>, StorageError>;
 
     /// List all files in a deploy
-    async fn list_files(
-        &self,
-        deploy_id: &str,
-    ) -> Result<Vec<FileInfo>, StorageError>;
+    async fn list_files(&self, deploy_id: &str) -> Result<Vec<FileInfo>, StorageError>;
 
     /// Delete an entire deploy
-    async fn delete_deploy(
-        &self,
-        deploy_id: &str,
-    ) -> Result<(), StorageError>;
+    async fn delete_deploy(&self, deploy_id: &str) -> Result<(), StorageError>;
 }
 
 #[derive(Debug, thiserror::Error)]

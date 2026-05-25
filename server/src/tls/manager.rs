@@ -52,10 +52,7 @@ pub struct CertificateManager {
 }
 
 impl CertificateManager {
-    pub async fn new(
-        config: TlsConfig,
-        dns_solver: Arc<dyn DnsSolver>,
-    ) -> Result<Self> {
+    pub async fn new(config: TlsConfig, dns_solver: Arc<dyn DnsSolver>) -> Result<Self> {
         tracing::info!("Initializing certificate manager");
         tracing::info!("  ACME directory: {:?}", config.acme_directory());
         tracing::info!("  Contact email: {}", config.email());
@@ -89,7 +86,9 @@ impl CertificateManager {
                 tracing::info!("Cached certificate is still valid");
                 pem_data
             } else {
-                tracing::info!("Cached certificate is expired or expiring soon, requesting new one");
+                tracing::info!(
+                    "Cached certificate is expired or expiring soon, requesting new one"
+                );
                 acquire_certificate_dns01(
                     directory_url,
                     config.email(),
@@ -151,7 +150,8 @@ fn spawn_renewal_task(
         tracing::info!("Background certificate renewal task started");
 
         let cache = DirCache::new(cert_dir);
-        let mut check_interval = std::time::Duration::from_secs(RENEWAL_CHECK_INTERVAL_HOURS * 3600);
+        let mut check_interval =
+            std::time::Duration::from_secs(RENEWAL_CHECK_INTERVAL_HOURS * 3600);
 
         loop {
             tokio::time::sleep(check_interval).await;
@@ -163,12 +163,14 @@ fn spawn_renewal_task(
                 Ok(Some(pem_data)) => pem_data,
                 Ok(None) => {
                     tracing::warn!("No cached certificate found during renewal check");
-                    check_interval = std::time::Duration::from_secs(RENEWAL_RETRY_INTERVAL_HOURS * 3600);
+                    check_interval =
+                        std::time::Duration::from_secs(RENEWAL_RETRY_INTERVAL_HOURS * 3600);
                     continue;
                 }
                 Err(e) => {
                     tracing::error!("Failed to load certificate during renewal check: {:?}", e);
-                    check_interval = std::time::Duration::from_secs(RENEWAL_RETRY_INTERVAL_HOURS * 3600);
+                    check_interval =
+                        std::time::Duration::from_secs(RENEWAL_RETRY_INTERVAL_HOURS * 3600);
                     continue;
                 }
             };
@@ -178,7 +180,8 @@ fn spawn_renewal_task(
                 Some(days) => days,
                 None => {
                     tracing::error!("Failed to parse certificate expiration date");
-                    check_interval = std::time::Duration::from_secs(RENEWAL_RETRY_INTERVAL_HOURS * 3600);
+                    check_interval =
+                        std::time::Duration::from_secs(RENEWAL_RETRY_INTERVAL_HOURS * 3600);
                     continue;
                 }
             };
@@ -201,19 +204,14 @@ fn spawn_renewal_task(
                     days_remaining
                 );
                 // Reset to normal check interval
-                check_interval = std::time::Duration::from_secs(RENEWAL_CHECK_INTERVAL_HOURS * 3600);
+                check_interval =
+                    std::time::Duration::from_secs(RENEWAL_CHECK_INTERVAL_HOURS * 3600);
                 continue;
             }
 
             // Attempt renewal
-            match acquire_certificate_dns01(
-                &directory_url,
-                &email,
-                &domains,
-                &dns_solver,
-                &cache,
-            )
-            .await
+            match acquire_certificate_dns01(&directory_url, &email, &domains, &dns_solver, &cache)
+                .await
             {
                 Ok(_) => {
                     tracing::info!("Certificate renewed successfully in background task");
@@ -221,13 +219,18 @@ fn spawn_renewal_task(
                         "New certificate is cached, but server restart required to load it"
                     );
                     // Reset to normal check interval after successful renewal
-                    check_interval = std::time::Duration::from_secs(RENEWAL_CHECK_INTERVAL_HOURS * 3600);
+                    check_interval =
+                        std::time::Duration::from_secs(RENEWAL_CHECK_INTERVAL_HOURS * 3600);
                 }
                 Err(e) => {
                     tracing::error!("Failed to renew certificate: {:?}", e);
-                    tracing::info!("Continuing with existing certificate, will retry in {} hour(s)", RENEWAL_RETRY_INTERVAL_HOURS);
+                    tracing::info!(
+                        "Continuing with existing certificate, will retry in {} hour(s)",
+                        RENEWAL_RETRY_INTERVAL_HOURS
+                    );
                     // Set retry interval
-                    check_interval = std::time::Duration::from_secs(RENEWAL_RETRY_INTERVAL_HOURS * 3600);
+                    check_interval =
+                        std::time::Duration::from_secs(RENEWAL_RETRY_INTERVAL_HOURS * 3600);
                 }
             }
         }
@@ -320,14 +323,8 @@ async fn acquire_certificate_dns01(
                 tracing::info!("Order is pending, processing authorizations...");
 
                 for auth_url in &order.authorizations.clone() {
-                    authorize_dns01(
-                        &client_config,
-                        &account,
-                        auth_url,
-                        dns_solver,
-                        &account_key,
-                    )
-                    .await?;
+                    authorize_dns01(&client_config, &account, auth_url, dns_solver, &account_key)
+                        .await?;
                 }
 
                 tracing::info!("All authorizations completed");
@@ -567,8 +564,8 @@ fn compute_dns01_value(account_key_pkcs8: &[u8], token: &str) -> Result<String> 
 /// the public key coordinates from the private key structure.
 fn extract_ec_pubkey_from_pkcs8(pkcs8: &[u8]) -> Result<([u8; 32], [u8; 32])> {
     // Parse the PKCS8 DER-encoded private key using the p256 crate
-    let secret_key = SecretKey::from_pkcs8_der(pkcs8)
-        .context("Failed to parse PKCS8 DER structure")?;
+    let secret_key =
+        SecretKey::from_pkcs8_der(pkcs8).context("Failed to parse PKCS8 DER structure")?;
 
     // Get the public key from the private key
     let public_key = secret_key.public_key();
@@ -715,7 +712,8 @@ mod tests {
 
     #[test]
     fn test_split_pem_no_key() {
-        let pem_data = b"-----BEGIN CERTIFICATE-----\nMIIBdjCCAR2gAwIBAgIUGJRx\n-----END CERTIFICATE-----\n";
+        let pem_data =
+            b"-----BEGIN CERTIFICATE-----\nMIIBdjCCAR2gAwIBAgIUGJRx\n-----END CERTIFICATE-----\n";
         let result = split_pem(pem_data);
         assert!(result.is_err());
         assert!(result.unwrap_err().to_string().contains("No private key"));

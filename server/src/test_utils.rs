@@ -1,4 +1,7 @@
-use sqlx::{SqlitePool, sqlite::{SqlitePoolOptions, SqliteConnectOptions}};
+use sqlx::{
+    sqlite::{SqliteConnectOptions, SqlitePoolOptions},
+    SqlitePool,
+};
 use std::str::FromStr;
 
 /// Create an in-memory database pool with migrations applied for testing
@@ -12,9 +15,7 @@ pub async fn create_test_pool() -> Result<SqlitePool, sqlx::Error> {
         .connect_with(connect_options)
         .await?;
 
-    sqlx::migrate!("./migrations")
-        .run(&pool)
-        .await?;
+    sqlx::migrate!("./migrations").run(&pool).await?;
 
     Ok(pool)
 }

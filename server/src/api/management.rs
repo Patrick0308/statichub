@@ -10,8 +10,8 @@ use axum::{
     response::Json,
 };
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use statichub_shared::build_project_url;
+use std::sync::Arc;
 
 #[derive(Debug, Serialize)]
 pub struct ProjectListItem {
@@ -105,7 +105,9 @@ pub async fn get_project_info(
 
     // Verify ownership
     if project.owner_id != Some(auth_user.user_id) {
-        return Err(AppError::Forbidden("You do not own this project".to_string()));
+        return Err(AppError::Forbidden(
+            "You do not own this project".to_string(),
+        ));
     }
 
     // Get all deploys for this project
@@ -152,7 +154,9 @@ pub async fn rollback_project(
 
     // Verify ownership
     if project.owner_id != Some(auth_user.user_id) {
-        return Err(AppError::Forbidden("You do not own this project".to_string()));
+        return Err(AppError::Forbidden(
+            "You do not own this project".to_string(),
+        ));
     }
 
     // Find the target deploy by version
@@ -175,7 +179,13 @@ pub async fn rollback_project(
     .await?;
 
     // Return updated project info
-    get_project_info(parts, State(state), Extension(auth_user), Path(project_name)).await
+    get_project_info(
+        parts,
+        State(state),
+        Extension(auth_user),
+        Path(project_name),
+    )
+    .await
 }
 
 #[cfg(test)]

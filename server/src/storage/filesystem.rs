@@ -1,9 +1,9 @@
 use super::trait_::{FileInfo, Storage, StorageError};
 use async_trait::async_trait;
-use std::path::{Path, PathBuf};
-use tokio::fs;
-use std::pin::Pin;
 use std::future::Future;
+use std::path::{Path, PathBuf};
+use std::pin::Pin;
+use tokio::fs;
 
 pub struct FilesystemStorage {
     base_path: PathBuf,
@@ -23,7 +23,10 @@ impl FilesystemStorage {
 
     fn validate_deploy_id(&self, deploy_id: &str) -> Result<(), StorageError> {
         if deploy_id.is_empty() || deploy_id.contains("..") || deploy_id.starts_with('/') {
-            return Err(StorageError::InvalidPath(format!("Invalid deploy_id: {}", deploy_id)));
+            return Err(StorageError::InvalidPath(format!(
+                "Invalid deploy_id: {}",
+                deploy_id
+            )));
         }
         Ok(())
     }
@@ -35,14 +38,14 @@ impl FilesystemStorage {
     /// Validate that the final resolved path is within base_path
     fn validate_resolved_path(&self, path: &Path) -> Result<(), StorageError> {
         // Canonicalize both paths to resolve any symlinks or relative components
-        let base_canonical = self.base_path
+        let base_canonical = self
+            .base_path
             .canonicalize()
             .map_err(|e| StorageError::Io(e))?;
 
         // For paths that don't exist yet, we need to canonicalize the parent
         let path_canonical = if path.exists() {
-            path.canonicalize()
-                .map_err(|e| StorageError::Io(e))?
+            path.canonicalize().map_err(|e| StorageError::Io(e))?
         } else {
             // Find the first existing parent
             let mut check_path = path;
@@ -51,16 +54,15 @@ impl FilesystemStorage {
                     check_path = parent;
                 } else {
                     // No parent exists, can't validate
-                    return Err(StorageError::InvalidPath(
-                        format!("Cannot validate path: {}", path.display())
-                    ));
+                    return Err(StorageError::InvalidPath(format!(
+                        "Cannot validate path: {}",
+                        path.display()
+                    )));
                 }
             }
 
             // Canonicalize the existing parent and append the non-existing parts
-            let canonical_parent = check_path
-                .canonicalize()
-                .map_err(|e| StorageError::Io(e))?;
+            let canonical_parent = check_path.canonicalize().map_err(|e| StorageError::Io(e))?;
 
             let remaining = path.strip_prefix(check_path).unwrap();
             canonical_parent.join(remaining)
@@ -68,9 +70,10 @@ impl FilesystemStorage {
 
         // Verify the canonical path starts with the canonical base
         if !path_canonical.starts_with(&base_canonical) {
-            return Err(StorageError::InvalidPath(
-                format!("Path escapes base directory: {}", path.display())
-            ));
+            return Err(StorageError::InvalidPath(format!(
+                "Path escapes base directory: {}",
+                path.display()
+            )));
         }
 
         Ok(())
@@ -99,11 +102,7 @@ impl Storage for FilesystemStorage {
         Ok(())
     }
 
-    async fn get_file(
-        &self,
-        deploy_id: &str,
-        path: &str,
-    ) -> Result<Vec<u8>, StorageError> {
+    async fn get_file(&self, deploy_id: &str, path: &str) -> Result<Vec<u8>, StorageError> {
         self.validate_deploy_id(deploy_id)?;
         self.validate_path(path)?;
 
@@ -118,10 +117,7 @@ impl Storage for FilesystemStorage {
         Ok(content)
     }
 
-    async fn list_files(
-        &self,
-        deploy_id: &str,
-    ) -> Result<Vec<FileInfo>, StorageError> {
+    async fn list_files(&self, deploy_id: &str) -> Result<Vec<FileInfo>, StorageError> {
         self.validate_deploy_id(deploy_id)?;
 
         let deploy_path = self.deploy_path(deploy_id);
@@ -136,10 +132,7 @@ impl Storage for FilesystemStorage {
         Ok(files)
     }
 
-    async fn delete_deploy(
-        &self,
-        deploy_id: &str,
-    ) -> Result<(), StorageError> {
+    async fn delete_deploy(&self, deploy_id: &str) -> Result<(), StorageError> {
         self.validate_deploy_id(deploy_id)?;
 
         let deploy_path = self.deploy_path(deploy_id);
