@@ -1,5 +1,3 @@
-$ErrorActionPreference = 'Stop'
-
 param(
   [Parameter(Position=0)]
   [ValidateSet('cli','server','both')]
@@ -9,6 +7,8 @@ param(
 
   [string]$BinDir = "$env:LOCALAPPDATA\statichub\bin"
 )
+
+$ErrorActionPreference = 'Stop'
 
 function Show-Usage {
   @"
