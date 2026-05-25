@@ -10,14 +10,23 @@
     <header class="site-header">
       <div class="wrap header-inner">
         <a class="brand" href="/">Statichub</a>
+        <nav class="top-nav" aria-label="Primary">
+          <a href="#capabilities">CLI</a>
+          <a href="#quickstart">Skill</a>
+          <a href="https://statichub.io/docs">Docs</a>
+          <a href="https://github.com/statichubhq/statichub">GitHub</a>
+        </nav>
         <a class="header-cta" href="#install">Install CLI</a>
       </div>
     </header>
 
     <main class="wrap main">
       <section class="intro-strip">
-        <p class="intro-line">AI-first and CLI-first static deploys from one workflow.</p>
-        <a class="intro-cta" href="#quickstart">Start quickstart</a>
+        <p class="intro-line">Built for AI coding workflows.</p>
+        <div class="intro-actions">
+          <a class="intro-cta intro-cta-primary" href="#install">Install CLI</a>
+          <a class="intro-cta intro-cta-secondary" href="#quickstart">Use Skill</a>
+        </div>
       </section>
 
       <section class="panel" id="quickstart">
@@ -72,53 +81,85 @@
           </div>
 
           <article class="tab-panel is-active" data-tab-panel="macos" role="tabpanel">
+            <p class="install-label">Recommended command</p>
             <div class="code-block">
               <code id="install-macos-cmd">brew install statichub/tap/statichub</code>
               <button class="copy-btn" data-copy-target="install-macos-cmd">Copy</button>
             </div>
+            <p class="install-fallback">Fallback: download tarball and place `statichub` in your PATH.</p>
+            <p class="install-links">
+              <a href="https://github.com/statichubhq/statichub/releases/latest">Latest version</a>
+              <a href="https://github.com/statichubhq/statichub/releases">Release notes</a>
+            </p>
           </article>
 
           <article class="tab-panel" data-tab-panel="linux" role="tabpanel">
+            <p class="install-label">Recommended command</p>
             <div class="code-block">
               <code id="install-linux-cmd">curl -fsSL https://statichub.io/install.sh | sh</code>
               <button class="copy-btn" data-copy-target="install-linux-cmd">Copy</button>
             </div>
+            <p class="install-fallback">Fallback: fetch a release archive and install manually.</p>
+            <p class="install-links">
+              <a href="https://github.com/statichubhq/statichub/releases/latest">Latest version</a>
+              <a href="https://github.com/statichubhq/statichub/releases">Release notes</a>
+            </p>
           </article>
 
           <article class="tab-panel" data-tab-panel="windows" role="tabpanel">
+            <p class="install-label">Recommended command</p>
             <div class="code-block">
               <code id="install-windows-cmd">winget install statichub.cli</code>
               <button class="copy-btn" data-copy-target="install-windows-cmd">Copy</button>
             </div>
+            <p class="install-fallback">Fallback: use the signed installer from GitHub Releases.</p>
+            <p class="install-links">
+              <a href="https://github.com/statichubhq/statichub/releases/latest">Latest version</a>
+              <a href="https://github.com/statichubhq/statichub/releases">Release notes</a>
+            </p>
           </article>
         </div>
       </section>
 
       <section class="values" aria-label="Core values">
         <article class="value-card">
-          <h3>AI pair ready</h3>
-          <p>Built for prompt-to-deploy loops with minimal context switching.</p>
+          <h3>Speed</h3>
+          <p>Move from prompt or terminal command to live URL in seconds.</p>
         </article>
         <article class="value-card">
-          <h3>Fast feedback</h3>
-          <p>Push updates and verify changes instantly from one command.</p>
+          <h3>Repeatability</h3>
+          <p>Use consistent deploy commands across projects and environments.</p>
         </article>
         <article class="value-card">
-          <h3>Predictable URLs</h3>
-          <p>Every project gets a clean subdomain you can share immediately.</p>
+          <h3>Shareability</h3>
+          <p>Share stable subdomains instantly with teammates and stakeholders.</p>
         </article>
       </section>
 
-      <section class="panel capabilities" id="capabilities">
+      <section class="capabilities-grid" id="capabilities">
         <div class="section-head">
-          <h2>Capabilities</h2>
+          <h2>CLI capabilities</h2>
         </div>
-        <ul>
-          <li>Project and preview deploys on stable subdomains</li>
-          <li>Subdomain rollback and deployment history</li>
-          <li>Static hosting with redirect and header controls</li>
-          <li>CLI workflows that fit AI coding sessions</li>
-        </ul>
+        <article class="cap-card">
+          <h3>Deploy current folder</h3>
+          <p>Publish a build output directory to a stable subdomain.</p>
+          <code>statichub deploy .</code>
+        </article>
+        <article class="cap-card">
+          <h3>AI-assisted deploy</h3>
+          <p>Use a Skill-first flow with your coding assistant.</p>
+          <code>statichub deploy --ai .</code>
+        </article>
+        <article class="cap-card">
+          <h3>Authentication check</h3>
+          <p>Verify login state before deploying from CI or local shells.</p>
+          <code>statichub auth status</code>
+        </article>
+        <article class="cap-card">
+          <h3>Version visibility</h3>
+          <p>Confirm installed CLI version before upgrades.</p>
+          <code>statichub --version</code>
+        </article>
       </section>
 
       <section class="panel faq" id="faq">
@@ -126,16 +167,20 @@
           <h2>FAQ</h2>
         </div>
         <details>
-          <summary>Do I need to use AI to use Statichub?</summary>
-          <p>No. AI-assisted and pure CLI workflows are both first-class.</p>
+          <summary>Should I use Skill or CLI mode?</summary>
+          <p>Use Skill for AI pair workflows and CLI for direct terminal-first control.</p>
         </details>
         <details>
-          <summary>Can I deploy plain HTML, JS, and CSS?</summary>
-          <p>Yes. Any static output folder can be deployed.</p>
+          <summary>What if install commands fail?</summary>
+          <p>Use each OS panel fallback method, then verify with <code>statichub --version</code>.</p>
         </details>
         <details>
-          <summary>Will this replace my existing subdomain sites?</summary>
-          <p>No. Base-domain homepage routing is separate from project subdomain serving.</p>
+          <summary>How do upgrades work?</summary>
+          <p>Re-run your install method or pull the latest release from the release notes page.</p>
+        </details>
+        <details>
+          <summary>How do I fix auth issues?</summary>
+          <p>Run <code>statichub auth status</code> and sign in again if your session expired.</p>
         </details>
       </section>
 
