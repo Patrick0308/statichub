@@ -629,9 +629,10 @@ async fn test_base_domain_root_serves_homepage(pool: SqlitePool) {
         .unwrap();
     let html = String::from_utf8(body.to_vec()).unwrap();
     assert!(html.contains("From AI prompt to production URL."));
-    assert!(html.contains("Skill-first"));
-    assert!(html.contains("CLI-first"));
-    assert!(html.contains("Install CLI"));
+    assert!(html.contains("/__home/home.css"));
+    assert!(html.contains("/__home/home.js"));
+    assert!(html.contains("id=\"quickstart\""));
+    assert!(html.contains("id=\"install\""));
 }
 
 #[sqlx::test]
@@ -666,8 +667,9 @@ async fn test_base_domain_home_asset_serves_css(pool: SqlitePool) {
         .unwrap();
     let css = String::from_utf8(body.to_vec()).unwrap();
     assert!(!css.is_empty());
-    // Stable token choice: "body" should exist in any meaningful global stylesheet.
-    assert!(css.contains("body"));
+    assert!(css.contains("--accent-ink: #08384e;"));
+    assert!(css.contains(".intro-strip"));
+    assert!(css.contains(".tab-btn.is-active"));
 }
 
 #[sqlx::test]
