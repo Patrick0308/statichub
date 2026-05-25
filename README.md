@@ -1,556 +1,136 @@
 # StaticHub
 
-> Static web publishing for front-end developers
-
-StaticHub is a static site hosting platform similar to Surge and GitHub Pages. Deploy your static sites with a single command and track deployment versions.
-
-## Features
-
-- **🚀 Instant Deploys** - Deploy static sites with one command
-- **🔓 Anonymous Deploys** - Quick deployments without login (free tier)
-- **🔐 Authenticated Projects** - Manage named projects with Google OAuth
-- **📦 Version Management** - Keep deployment history and rollback instantly
-- **⚙️ Project Configuration** - Clean URLs, SPA mode, redirects, custom headers
-- **📝 Deploy History** - Track all deployments with metadata
+StaticHub is a static hosting platform for front-end projects. It supports fast anonymous deploys, named project deploys with auth, deployment history, and rollback.
 
 ## Quick Start
 
-### 1. Deploy Anonymously (No Login Required)
+Install CLI:
 
 ```bash
-# Deploy current directory
-statichub deploy .
-
-# Deploy specific directory
-statichub deploy ./dist
-
-# Deploy with config file
-statichub deploy ./build --config statichub.yaml
-
-# Deploy a single HTML file
-statichub deploy ~/my-page.html
-```
-
-You'll get a unique URL like `https://x7k2m9.statichub.dev` that expires after 24 hours.
-
-### 2. Deploy to a Named Project (Requires Login)
-
-```bash
-# Login with Google
-statichub login
-
-# Deploy to a named project
-statichub deploy ./dist --name my-app
-
-# Your site is live at https://my-app.statichub.dev
-```
-
-## Installation
-
-### One-line Install (Recommended)
-
-**Unix/Linux/macOS**
-```bash
-# Install CLI only (default)
 curl -sSL https://raw.githubusercontent.com/Patrick0308/statichub/main/scripts/install.sh | sh
-
-# Install server only
-curl -sSL https://raw.githubusercontent.com/Patrick0308/statichub/main/scripts/install.sh | sh -s server
-
-# Install both CLI + server
-curl -sSL https://raw.githubusercontent.com/Patrick0308/statichub/main/scripts/install.sh | sh -s both
 ```
 
-**Windows (PowerShell)**
-```powershell
-# Install CLI only (default)
-irm https://raw.githubusercontent.com/Patrick0308/statichub/main/scripts/install.ps1 | iex
-
-# Script parameters are supported when running file directly
-# e.g. .\scripts\install.ps1 both
-```
-
-Scope values:
-- `cli` (default): install `statichub`
-- `server`: install `statichub-server`
-- `both`: install both binaries
-
-### Pre-built Binaries
-
-Download the latest release for your platform from the [Releases page](https://github.com/Patrick0308/statichub/releases).
-
-Each release package includes both the **CLI tool** (`statichub`) and the **server** (`statichub-server`).
-
-**macOS (Intel)**:
-```bash
-curl -L https://github.com/Patrick0308/statichub/releases/latest/download/statichub-x86_64-apple-darwin.tar.gz | tar xz
-# Install CLI only
-sudo mv statichub /usr/local/bin/
-# Or install both CLI and server
-sudo mv statichub statichub-server /usr/local/bin/
-```
-
-**macOS (Apple Silicon)**:
-```bash
-curl -L https://github.com/Patrick0308/statichub/releases/latest/download/statichub-aarch64-apple-darwin.tar.gz | tar xz
-sudo mv statichub /usr/local/bin/
-# Optionally install server: sudo mv statichub-server /usr/local/bin/
-```
-
-**Linux (x86_64)**:
-```bash
-curl -L https://github.com/Patrick0308/statichub/releases/latest/download/statichub-x86_64-linux-musl.tar.gz | tar xz
-sudo mv statichub /usr/local/bin/
-# Optionally install server: sudo mv statichub-server /usr/local/bin/
-```
-
-**Windows**:
-1. Download `statichub-x86_64-windows.zip` from the releases page
-2. Extract the archive (contains `statichub.exe` and `statichub-server.exe`)
-3. Add the extracted directory to your PATH
-
-**Verify Installation**:
-```bash
-statichub --version
-# If server is installed:
-statichub-server --version
-```
-
-### From Source
+Deploy a directory:
 
 ```bash
-# Clone the repository
-git clone https://github.com/yourusername/statichub.git
-cd statichub
-
-# Build the CLI
-cargo build --release -p statichub
-
-# The binary is at target/release/statichub
-# Add it to your PATH or copy to /usr/local/bin
+statichub deploy ./dist
 ```
 
-### Server Setup
+Deploy a single HTML file:
 
 ```bash
-# Set up environment variables
-cp server/.env.example server/.env
-# Edit .env with your configuration
+statichub deploy ~/Downloads/page.html
 ```
 
-**Configure environment variables in `.env`:**
-
-- `STATICHUB_PORT` - Server listening port (default: 3000)
-- `STATICHUB_ALLOWED_DOMAINS` - Comma-separated list of domains the server accepts (default: localhost,statichub.dev)
-- `STATICHUB_DATABASE_URL` - SQLite database path (default: sqlite:statichub.db)
-- `STATICHUB_STORAGE_PATH` - Path for deployment storage (default: ~/.statichub/deploys)
-- `STATICHUB_GOOGLE_CLIENT_ID` - Google OAuth client ID
-- `STATICHUB_GOOGLE_CLIENT_SECRET` - Google OAuth client secret
-- `STATICHUB_GOOGLE_REDIRECT_URL` - OAuth callback URL (must match PORT, e.g., http://localhost:3000/auth/callback/google)
-- `STATICHUB_JWT_SECRET` - Secret key for JWT token signing (use a long random string)
-
-**Multi-domain setup:**
-
-The server can serve multiple domains. Each domain in `STATICHUB_ALLOWED_DOMAINS` will:
-- Accept deployments via CLI (using `STATICHUB_SERVER` environment variable)
-- Serve static content based on hostname routing
-
-Example for production:
-```bash
-STATICHUB_PORT=80
-STATICHUB_ALLOWED_DOMAINS=statichub.dev,statichub.com,localhost
-```
-
-**Start the server:**
+Login and deploy to a named project:
 
 ```bash
-# Initialize database (first time only)
-statichub-server db init
-
-# Start the server
-statichub-server serve
-
-# The server listens on the STATICHUB_PORT specified in .env
-# and accepts requests for all domains in STATICHUB_ALLOWED_DOMAINS
-```
-
-**Database management commands:**
-
-```bash
-# Initialize new database
-statichub-server db init
-
-# Run pending migrations
-statichub-server db migrate
-
-# Check migration status
-statichub-server db status
-
-# Reset database (WARNING: deletes all data)
-statichub-server db reset
+statichub login
+statichub deploy ./dist --name my-app
 ```
 
 ## CLI Commands
 
-### Authentication
-
 ```bash
-# Login with Google OAuth
+statichub deploy <path> [--name <project>] [--config statichub.yaml]
 statichub login
-
-# Logout
 statichub logout
-```
-
-### Deployment
-
-```bash
-# Deploy anonymously (no login)
-statichub deploy <directory>
-
-# Deploy to named project (requires login)
-statichub deploy <directory> --name <project-name>
-
-# Deploy with custom config
-statichub deploy <directory> --config statichub.yaml
-```
-
-### Project Management
-
-```bash
-# List your projects
 statichub list
-
-# View project details and deploy history
 statichub info <project>
-
-# Rollback to previous version
 statichub rollback <project> <version>
 ```
 
-## Configuration
+## `statichub` Skill (for AI Agents)
 
-Create a `statichub.yaml` file in your project root:
+This repository includes a reusable skill at `skills/statichub` for agents that need to deploy AI-generated static output safely.
+
+Install with `npx skills`:
+
+```bash
+npx skills add Patrick0308/statichub --skill statichub
+```
+
+Global install:
+
+```bash
+npx skills add Patrick0308/statichub --skill statichub -g
+```
+
+Check installed skills:
+
+```bash
+npx skills ls
+```
+
+Skill behavior summary:
+
+1. Requires explicit deploy path: `statichub deploy <path>`
+2. Accepts only a non-empty directory or non-empty `.html` file
+3. Stops on validation failure and returns repair commands
+4. Uses named deploy when `--name` is present, anonymous otherwise
+
+Real output example:
+
+```text
+✅ Deploy successful!
+   URL: http://b7kr7b.statichub.dev
+   Subdomain: b7kr7b
+```
+
+The `URL` value is the live page URL.
+
+## Optional Config (`statichub.yaml`)
 
 ```yaml
-# Clean URLs - remove .html extensions
 clean_urls: true
-
-# Single Page Application mode
 spa: true
-
-# Custom redirects
 redirects:
   - from: /old-path
     to: /new-path
     status: 301
-  - from: /blog/*
-    to: /posts/:splat
-    status: 302
-
-# Custom HTTP headers
 headers:
   - path: /*
     headers:
       X-Frame-Options: DENY
-      X-Content-Type-Options: nosniff
-  - path: /assets/*
-    headers:
-      Cache-Control: public, max-age=31536000, immutable
-
-# Directory index files (default: index.html)
 directory_index:
   - index.html
-  - index.htm
 ```
 
-### Configuration Options
+## Run Server Locally
 
-**clean_urls** (boolean, default: `false`)
-- Remove `.html` extensions from URLs
-- `/about.html` becomes accessible at `/about`
+Create `.env` values and start server:
 
-**spa** (boolean, default: `false`)
-- Enable Single Page Application mode
-- All non-file paths serve `index.html`
-- Useful for React, Vue, Angular apps
-
-**redirects** (array)
-- `from` (string, required) - Source path
-- `to` (string, required) - Destination path
-- `status` (integer, optional, default: 301) - HTTP status code
-- Use `:splat` for wildcard matching
-
-**headers** (array)
-- `path` (string, required) - Path pattern (supports wildcards)
-- `headers` (object, required) - Key-value pairs of HTTP headers
-
-**directory_index** (array, default: `["index.html"]`)
-- Files to serve for directory requests
-
-## Architecture
-
-StaticHub is built with:
-
-- **CLI**: Rust with Clap for command-line interface
-- **Server**: Rust with Axum web framework
-- **Database**: SQLite with SQLx for data persistence
-- **Storage**: Filesystem storage (S3-ready with trait abstraction)
-- **Authentication**: Google OAuth 2.0 with JWT tokens
-
-### Project Structure
-
+```bash
+cp server/.env.example server/.env
+statichub-server db init
+statichub-server serve
 ```
-statichub/
-├── cli/              # Command-line interface
-├── server/           # API server and static file serving
-│   ├── src/
-│   │   ├── api/      # REST API endpoints
-│   │   ├── models/   # Database models
-│   │   ├── storage/  # Storage abstraction
-│   │   └── middleware/ # Auth middleware
-│   ├── migrations/   # Database migrations
-│   └── tests/        # Integration tests
-├── shared/           # Shared types between CLI and server
-└── docs/             # Documentation and plans
-```
+
+Important env vars:
+
+- `STATICHUB_PORT`
+- `STATICHUB_ALLOWED_DOMAINS`
+- `STATICHUB_DATABASE_URL`
+- `STATICHUB_STORAGE_PATH`
+- `STATICHUB_JWT_SECRET`
+- `STATICHUB_GOOGLE_CLIENT_ID`
+- `STATICHUB_GOOGLE_CLIENT_SECRET`
+- `STATICHUB_GOOGLE_REDIRECT_URL`
 
 ## Development
 
-### Running Tests
+Run tests:
 
 ```bash
-# Run all tests
 cargo test --workspace
-
-# Run server tests only
-cargo test -p statichub-server
-
-# Run CLI tests only
-cargo test -p statichub
 ```
 
-### Environment Variables
+Project layout:
 
-**Server:**
-- `STATICHUB_DATABASE_URL` - SQLite database path (default: `sqlite:statichub.db`)
-- `STATICHUB_PORT` - Server listening port (default: `3000`)
-- `STATICHUB_ALLOWED_DOMAINS` - Comma-separated list of allowed domains (default: `localhost,statichub.dev`)
-- `STATICHUB_STORAGE_PATH` - Path for deployment storage (default: `~/.statichub/deploys`)
-- `STATICHUB_GOOGLE_CLIENT_ID` - Google OAuth client ID
-- `STATICHUB_GOOGLE_CLIENT_SECRET` - Google OAuth client secret
-- `STATICHUB_GOOGLE_REDIRECT_URL` - OAuth callback URL (must match your PORT)
-- `STATICHUB_JWT_SECRET` - Secret key for JWT token signing
-
-**CLI:**
-- `STATICHUB_SERVER` - Server URL (default: `https://statichub.dev`)
-
-**Multi-domain Configuration:**
-
-The server uses `STATICHUB_PORT` and `STATICHUB_ALLOWED_DOMAINS` instead of a single `BASE_URL`. This allows:
-- Serving multiple domains from one server instance
-- Flexible deployment across different environments
-- Hostname-based routing for static content
-
-Example configurations:
-
-**Development:**
-```bash
-# Server .env
-STATICHUB_PORT=3000
-STATICHUB_ALLOWED_DOMAINS=localhost,statichub.dev
-
-# CLI environment
-export STATICHUB_SERVER=http://localhost:3000
+```text
+cli/      # CLI binary
+server/   # API server and static serving
+shared/   # shared types
+skills/   # reusable agent skills
+docs/     # docs and plans
 ```
-
-**Production:**
-```bash
-# Server .env
-STATICHUB_PORT=80
-STATICHUB_ALLOWED_DOMAINS=statichub.dev,statichub.com
-
-# CLI environment (users point to their preferred domain)
-export STATICHUB_SERVER=https://statichub.dev
-```
-
-The CLI's `STATICHUB_SERVER` should point to any domain in the server's `STATICHUB_ALLOWED_DOMAINS` list.
-
-## TLS / HTTPS Support
-
-StaticHub supports automatic HTTPS using Let's Encrypt with DNS-01 challenge.
-
-### Requirements
-
-- A domain name with DNS hosted on Cloudflare
-- Cloudflare API token with Zone:Edit permissions
-
-### Configuration
-
-```bash
-# Enable TLS
-STATICHUB_TLS_ENABLED=true
-
-# TLS port (default: 443)
-STATICHUB_TLS_PORT=443
-
-# Let's Encrypt contact email (required)
-STATICHUB_TLS_EMAIL=admin@example.com
-
-# ACME environment (default: staging)
-# Use 'staging' for testing, 'production' for real certificates
-STATICHUB_ACME_DIRECTORY=staging
-
-# Certificate storage directory
-STATICHUB_CERT_DIR=./var/statichub/certs
-
-# DNS provider (currently only Cloudflare supported)
-STATICHUB_DNS_PROVIDER=cloudflare
-STATICHUB_DNS_API_TOKEN=your_cloudflare_token
-
-# Domains will be extracted from STATICHUB_ALLOWED_DOMAINS
-# Base domains (statichub.dev) -> wildcard cert (*.statichub.dev)
-# Subdomains (api.statichub.dev) -> specific cert
-STATICHUB_ALLOWED_DOMAINS=statichub.dev,api.example.com
-```
-
-### Testing with Staging
-
-Always test with staging environment first to avoid hitting Let's Encrypt rate limits:
-
-```bash
-STATICHUB_TLS_ENABLED=true \
-STATICHUB_ACME_DIRECTORY=staging \
-STATICHUB_TLS_EMAIL=test@example.com \
-STATICHUB_DNS_PROVIDER=cloudflare \
-STATICHUB_DNS_API_TOKEN=xxx \
-./target/release/statichub-server
-```
-
-Staging certificates are not trusted by browsers, but verify that:
-1. DNS challenge completes successfully
-2. Certificate is acquired
-3. Server starts on port 443
-
-### Production Deployment
-
-Once staging works, switch to production:
-
-```bash
-STATICHUB_ACME_DIRECTORY=production
-```
-
-**Rate Limits:**
-- Production: 50 certificates per domain per week
-- Be careful when testing in production
-
-### Certificate Management
-
-Check certificate status:
-```bash
-statichub-server tls status
-```
-
-Manually renew certificates:
-```bash
-statichub-server tls renew
-```
-
-Certificates are automatically renewed 30 days before expiration.
-
-### Troubleshooting
-
-**Certificate acquisition fails:**
-- Verify Cloudflare API token has Zone:Edit permissions
-- Check DNS records can be updated: `_acme-challenge.yourdomain.com`
-- Review server logs for detailed error messages
-
-**DNS propagation:**
-- Certificate acquisition waits 2 minutes for DNS propagation
-- If challenges fail, check DNS provider's propagation time
-
-**Rate limiting:**
-- Staging environment has lenient limits for testing
-- Production: 50 certs/domain/week
-- Use staging first to verify configuration
-
-### Database Migrations
-
-```bash
-# Create a new migration
-sqlx migrate add <name>
-
-# Run pending migrations
-sqlx migrate run
-
-# Revert last migration
-sqlx migrate revert
-```
-
-## API Endpoints
-
-### Anonymous Deploys
-
-- `POST /api/deploys` - Create anonymous deployment
-
-### Authentication
-
-- `POST /auth/login/google` - Initiate Google OAuth flow
-- `GET /auth/callback/google` - OAuth callback
-- `GET /auth/status/:session_id` - Check auth status
-
-### Projects (Authenticated)
-
-- `POST /api/projects/:name/deploys` - Deploy to named project
-- `GET /api/projects` - List user's projects
-- `GET /api/projects/:name` - Get project details
-- `POST /api/projects/:name/rollback` - Rollback to version
-
-### Static File Serving
-
-- `GET /*` - Serve static files (hostname-based routing)
-
-## Security
-
-- **JWT Authentication** - Secure token-based auth with 7-day expiry
-- **OAuth 2.0** - Industry-standard authentication via Google
-- **Project Ownership** - All operations validate user ownership
-- **Path Traversal Protection** - Canonical path validation prevents directory escaping
-- **SQL Injection Prevention** - All queries use parameterized statements
-
-## Roadmap
-
-- [ ] GitHub OAuth provider
-- [ ] Deploy tokens for CI/CD
-- [ ] S3 storage backend
-- [x] Let's Encrypt SSL automation
-- [ ] Deployment webhooks
-- [ ] Access logs and analytics
-- [ ] Team collaboration features
-- [ ] Custom error pages (404, 500)
-
-## Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Write tests for your changes
-4. Ensure all tests pass (`cargo test --workspace`)
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
-
-## License
-
-[MIT License](LICENSE)
-
-## Credits
-
-Built with [Claude Code](https://claude.com/claude-code) by Anthropic.
-
-## Support
-
-- **Issues**: [GitHub Issues](https://github.com/yourusername/statichub/issues)
-- **Documentation**: See `docs/` directory
-- **Email**: support@statichub.dev
