@@ -44,6 +44,22 @@ async function copyText(text) {
   document.body.removeChild(temp);
 }
 
+function selectCommandText(element) {
+  if (!element) {
+    return;
+  }
+
+  const selection = window.getSelection();
+  if (!selection) {
+    return;
+  }
+
+  const range = document.createRange();
+  range.selectNodeContents(element);
+  selection.removeAllRanges();
+  selection.addRange(range);
+}
+
 function setupCopyButtons() {
   const buttons = document.querySelectorAll('.copy-btn[data-copy-target]');
 
@@ -63,7 +79,8 @@ function setupCopyButtons() {
           button.textContent = originalLabel;
         }, 1200);
       } catch (_err) {
-        button.textContent = 'Failed';
+        button.textContent = 'Copy manually';
+        selectCommandText(source);
       }
     });
   });
