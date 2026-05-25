@@ -295,7 +295,7 @@ Expected: 看到 "Release" workflow 正在运行，包含 test、build、release
 # macOS Intel 示例
 curl -L https://github.com/Patrick0308/statichub/releases/download/v0.1.0-test/statichub-x86_64-apple-darwin-0.1.0-test.tar.gz -o test.tar.gz
 tar xzf test.tar.gz
-./statichub --version
+./statichub version
 ```
 
 Expected: 显示版本信息
@@ -364,7 +364,7 @@ sudo mv statichub /usr/local/bin/
 
 **Verify Installation**:
 ```bash
-statichub --version
+statichub version
 ```
 
 ```

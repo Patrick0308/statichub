@@ -90,11 +90,11 @@ try {
   Write-Host ""
   Write-Host "Done. Verify with:"
   switch ($Scope) {
-    'cli'    { Write-Host '  statichub --version' }
-    'server' { Write-Host '  statichub-server --version' }
+    'cli'    { Write-Host '  statichub version' }
+    'server' { Write-Host '  statichub-server version' }
     'both'   {
-      Write-Host '  statichub --version'
-      Write-Host '  statichub-server --version'
+      Write-Host '  statichub version'
+      Write-Host '  statichub-server version'
     }
   }
 }
