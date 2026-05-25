@@ -1,7 +1,7 @@
-mod user;
-mod project;
 mod deploy;
+mod project;
+mod user;
 
-pub use user::User;
-pub use project::Project;
 pub use deploy::Deploy;
+pub use project::Project;
+pub use user::User;

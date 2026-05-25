@@ -1,4 +1,4 @@
-use sqlx::{SqlitePool, Transaction, Sqlite};
+use sqlx::{Sqlite, SqlitePool, Transaction};
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct Deploy {
@@ -20,7 +20,7 @@ impl Deploy {
     ) -> Result<Deploy, sqlx::Error> {
         // Get next version number
         let next_version: i64 = sqlx::query_scalar(
-            "SELECT COALESCE(MAX(version), 0) + 1 FROM deploys WHERE project_id = ?"
+            "SELECT COALESCE(MAX(version), 0) + 1 FROM deploys WHERE project_id = ?",
         )
         .bind(project_id)
         .fetch_one(pool)
@@ -49,7 +49,7 @@ impl Deploy {
     ) -> Result<Deploy, sqlx::Error> {
         // Get next version number
         let next_version: i64 = sqlx::query_scalar(
-            "SELECT COALESCE(MAX(version), 0) + 1 FROM deploys WHERE project_id = ?"
+            "SELECT COALESCE(MAX(version), 0) + 1 FROM deploys WHERE project_id = ?",
         )
         .bind(project_id)
         .fetch_one(&mut **tx)
@@ -100,7 +100,7 @@ impl Deploy {
         project_id: i64,
     ) -> Result<Vec<Deploy>, sqlx::Error> {
         let deploys = sqlx::query_as::<_, Deploy>(
-            "SELECT * FROM deploys WHERE project_id = ? ORDER BY version DESC"
+            "SELECT * FROM deploys WHERE project_id = ? ORDER BY version DESC",
         )
         .bind(project_id)
         .fetch_all(pool)
@@ -109,10 +109,7 @@ impl Deploy {
         Ok(deploys)
     }
 
-    pub async fn find_by_id(
-        pool: &SqlitePool,
-        id: i64,
-    ) -> Result<Option<Deploy>, sqlx::Error> {
+    pub async fn find_by_id(pool: &SqlitePool, id: i64) -> Result<Option<Deploy>, sqlx::Error> {
         sqlx::query_as::<_, Deploy>("SELECT * FROM deploys WHERE id = ?")
             .bind(id)
             .fetch_optional(pool)
@@ -125,7 +122,7 @@ impl Deploy {
         version: i64,
     ) -> Result<Option<Deploy>, sqlx::Error> {
         let deploy = sqlx::query_as::<_, Deploy>(
-            "SELECT * FROM deploys WHERE project_id = ? AND version = ?"
+            "SELECT * FROM deploys WHERE project_id = ? AND version = ?",
         )
         .bind(project_id)
         .bind(version)
@@ -182,21 +179,27 @@ impl Deploy {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{User, Project};
+    use crate::models::{Project, User};
 
     #[tokio::test]
     async fn test_create_deploy_increments_version() {
         let pool = crate::test_utils::create_test_pool().await.unwrap();
 
         let user = User::create(&pool, "google", "123", "test@example.com", "testuser")
-            .await.unwrap();
+            .await
+            .unwrap();
         let project = Project::create_owned(&pool, user.id, "test", None)
-            .await.unwrap();
+            .await
+            .unwrap();
 
-        let deploy1 = Deploy::create(&pool, project.id, "test/deploy-1").await.unwrap();
+        let deploy1 = Deploy::create(&pool, project.id, "test/deploy-1")
+            .await
+            .unwrap();
         assert_eq!(deploy1.version, 1);
 
-        let deploy2 = Deploy::create(&pool, project.id, "test/deploy-2").await.unwrap();
+        let deploy2 = Deploy::create(&pool, project.id, "test/deploy-2")
+            .await
+            .unwrap();
         assert_eq!(deploy2.version, 2);
     }
 
@@ -205,24 +208,27 @@ mod tests {
         let pool = crate::test_utils::create_test_pool().await.unwrap();
 
         let user = User::create(&pool, "google", "123", "test@example.com", "testuser")
-            .await.unwrap();
+            .await
+            .unwrap();
         let project = Project::create_owned(&pool, user.id, "test", None)
-            .await.unwrap();
+            .await
+            .unwrap();
 
         // Create 5 deploys
         for i in 1..=5 {
             Deploy::create(&pool, project.id, &format!("test/deploy-{}", i))
-                .await.unwrap();
+                .await
+                .unwrap();
         }
 
         // Keep only 3 most recent
         let deleted = Deploy::delete_old_deploys(&pool, project.id, 3)
-            .await.unwrap();
+            .await
+            .unwrap();
 
         assert_eq!(deleted.len(), 2);
 
-        let remaining = Deploy::list_by_project(&pool, project.id)
-            .await.unwrap();
+        let remaining = Deploy::list_by_project(&pool, project.id).await.unwrap();
         assert_eq!(remaining.len(), 3);
     }
 }

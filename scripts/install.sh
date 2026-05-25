@@ -153,10 +153,10 @@ esac
 echo ""
 echo "Done. Verify with:"
 case "$SCOPE" in
-  cli) echo "  statichub --version" ;;
-  server) echo "  statichub-server --version" ;;
+  cli) echo "  statichub version" ;;
+  server) echo "  statichub-server version" ;;
   both)
-    echo "  statichub --version"
-    echo "  statichub-server --version"
+    echo "  statichub version"
+    echo "  statichub-server version"
     ;;
 esac

@@ -1,10 +1,8 @@
-use axum::{
-    extract::Request,
-    http::HeaderMap,
-    middleware::Next,
-    response::Response,
+use crate::{
+    config::{parse_host, ServerConfig},
+    error::{AppError, Result},
 };
-use crate::{config::{parse_host, ServerConfig}, error::{AppError, Result}};
+use axum::{extract::Request, http::HeaderMap, middleware::Next, response::Response};
 
 #[derive(Clone, Debug)]
 pub struct RequestHost {
@@ -54,14 +52,16 @@ pub async fn host_validation_middleware(
     }
 
     // Extract base domain from the configuration
-    let base_domain = config.extract_base_domain(&domain)
-        .ok_or_else(|| AppError::InvalidHost(format!(
-            "Could not determine base domain for: {}",
-            domain
-        )))?;
+    let base_domain = config.extract_base_domain(&domain).ok_or_else(|| {
+        AppError::InvalidHost(format!("Could not determine base domain for: {}", domain))
+    })?;
 
     // Attach to request extensions
-    let request_host = RequestHost { domain, port, base_domain };
+    let request_host = RequestHost {
+        domain,
+        port,
+        base_domain,
+    };
     req.extensions_mut().insert(request_host);
 
     Ok(next.run(req).await)

@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Statichub | AI-generated content, auto-published</title>
+    <link rel="stylesheet" href="/__home/home.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="wrap header-inner">
+        <a class="brand" href="/">statichub</a>
+        <nav class="top-nav" aria-label="Primary">
+          <a href="#how">Product</a>
+          <a href="#install">Developers</a>
+          <a href="#capabilities">Solutions</a>
+          <a href="https://github.com/Patrick0308/statichub#readme" target="_blank" rel="noopener noreferrer">Docs</a>
+        </nav>
+        <div class="header-actions">
+          <a class="btn btn-ghost" href="https://github.com/Patrick0308/statichub" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a class="btn btn-primary" href="#install" data-analytics="install-primary">Auto-publish now</a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero wrap" id="hero">
+        <p class="hero-pill">For AI coding workflows</p>
+        <h1>
+          AI-generated content<br />
+          <span>auto-published.</span>
+        </h1>
+        <p class="hero-sub">Statichub Skill and CLI turn generated output into a live URL automatically.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#install" data-analytics="install-primary">Auto-publish now</a>
+          <a class="btn btn-outline" href="#quickstart" data-analytics="use-skill">Quickstart</a>
+        </div>
+      </section>
+
+      <section class="logo-row wrap" aria-label="Trust line">
+        <p>Trusted in fast iteration workflows</p>
+        <div class="logo-list">
+          <span>terminal-first</span>
+          <span>agent-compatible</span>
+          <span>deployment history</span>
+          <span>rollback-ready</span>
+        </div>
+      </section>
+
+      <section class="feature-grid wrap" id="capabilities">
+        <article class="feature-card">
+          <h3>Directory deploy</h3>
+          <p>Publish a build output directory immediately.</p>
+          <code>statichub deploy ./dist</code>
+        </article>
+        <article class="feature-card">
+          <h3>Single HTML deploy</h3>
+          <p>Ship one HTML file directly.</p>
+          <code>statichub deploy ~/Downloads/page.html</code>
+        </article>
+        <article class="feature-card">
+          <h3>Named project</h3>
+          <p>Keep a stable project with auth flow.</p>
+          <code>statichub deploy ./dist --name my-app</code>
+        </article>
+      </section>
+
+      <section class="section wrap" id="how">
+        <div class="section-head compact">
+          <h2>How it works</h2>
+        </div>
+        <ol class="flow">
+          <li data-quickstart-step="1"><strong>Generate</strong><span>AI creates output.</span></li>
+          <li data-quickstart-step="2"><strong>Deploy</strong><span>Skill or CLI publishes.</span></li>
+          <li data-quickstart-step="3"><strong>Share</strong><span>Live URL is ready.</span></li>
+        </ol>
+      </section>
+
+      <section class="section wrap" id="quickstart">
+        <div class="tabs" data-tabs="quickstart">
+          <div class="tab-list" role="tablist" aria-label="Quickstart path">
+            <button class="tab-btn is-active" data-tab-target="skill" role="tab" aria-selected="true">Skill-first</button>
+            <button class="tab-btn" data-tab-target="cli" role="tab" aria-selected="false">CLI-first</button>
+          </div>
+
+          <article class="tab-panel is-active" data-tab-panel="skill" role="tabpanel">
+            <div class="code-block single">
+              <code id="quickstart-skill-cmd">npx skills add Patrick0308/statichub --skill statichub</code>
+              <button class="copy-btn" data-copy-target="quickstart-skill-cmd">Copy</button>
+            </div>
+          </article>
+
+          <article class="tab-panel" data-tab-panel="cli" role="tabpanel">
+            <div class="code-block single">
+              <code id="quickstart-cli-cmd">statichub deploy ./dist</code>
+              <button class="copy-btn" data-copy-target="quickstart-cli-cmd">Copy</button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section wrap" id="install">
+        <div class="section-head compact">
+          <h2>Install</h2>
+          <p>README-aligned commands.</p>
+        </div>
+
+        <div class="tabs" data-tabs="install">
+          <div class="tab-list" role="tablist" aria-label="Operating system">
+            <button class="tab-btn is-active" data-tab-target="macos" role="tab" aria-selected="true">macOS/Linux</button>
+            <button class="tab-btn" data-tab-target="windows" role="tab" aria-selected="false">Windows</button>
+          </div>
+
+          <article class="tab-panel is-active" data-tab-panel="macos" role="tabpanel">
+            <div class="code-block single">
+              <code id="install-macos-cmd">curl -sSL https://raw.githubusercontent.com/Patrick0308/statichub/main/scripts/install.sh | sh</code>
+              <button class="copy-btn" data-copy-target="install-macos-cmd" data-os="macos">Copy</button>
+            </div>
+          </article>
+
+          <article class="tab-panel" data-tab-panel="windows" role="tabpanel">
+            <div class="code-block single">
+              <code id="install-windows-cmd">iwr https://raw.githubusercontent.com/Patrick0308/statichub/main/scripts/install.ps1 -UseBasicParsing | iex</code>
+              <button class="copy-btn" data-copy-target="install-windows-cmd" data-os="windows">Copy</button>
+            </div>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <script src="/__home/home.js" defer></script>
+  </body>
+</html>

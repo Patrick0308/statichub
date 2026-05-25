@@ -1,7 +1,7 @@
-use statichub_server::{db, storage, api, create_router, cli, config::ServerConfig};
-use statichub_server::tls::{TlsConfig, CloudflareSolver, CertificateManager, DnsSolver};
 use clap::Parser;
-use std::{net::SocketAddr, sync::Arc, io::Write};
+use statichub_server::tls::{CertificateManager, CloudflareSolver, DnsSolver, TlsConfig};
+use statichub_server::{api, cli, config::ServerConfig, create_router, db, storage};
+use std::{io::Write, net::SocketAddr, sync::Arc};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
@@ -57,9 +57,7 @@ async fn serve() -> anyhow::Result<()> {
     // Check if migrations are up to date
     match db::migration_status(&database_url).await {
         Ok(migrations) => {
-            let pending: Vec<_> = migrations.iter()
-                .filter(|m| !m.applied)
-                .collect();
+            let pending: Vec<_> = migrations.iter().filter(|m| !m.applied).collect();
 
             if !pending.is_empty() {
                 eprintln!("\n⚠️  Warning: {} pending migration(s)", pending.len());
@@ -89,7 +87,8 @@ async fn serve() -> anyhow::Result<()> {
     let storage_path = std::env::var("STATICHUB_STORAGE_PATH")
         .unwrap_or_else(|_| "./var/statichub/deploys".to_string());
 
-    let storage = Arc::new(storage::FilesystemStorage::new(storage_path.into())) as Arc<dyn storage::Storage>;
+    let storage =
+        Arc::new(storage::FilesystemStorage::new(storage_path.into())) as Arc<dyn storage::Storage>;
 
     // Shared state
     let deploy_state = Arc::new(api::DeployState {
@@ -110,11 +109,10 @@ async fn serve() -> anyhow::Result<()> {
     )?);
 
     // Build router
-    let app = create_router(deploy_state, auth_state)
-        .layer(axum::middleware::from_fn_with_state(
-            config.clone(),
-            statichub_server::middleware::host_validation_middleware,
-        ));
+    let app = create_router(deploy_state, auth_state).layer(axum::middleware::from_fn_with_state(
+        config.clone(),
+        statichub_server::middleware::host_validation_middleware,
+    ));
 
     // Check if TLS is enabled
     if let Some(tls_config) = TlsConfig::from_env(&config.allowed_domains)? {
@@ -123,7 +121,7 @@ async fn serve() -> anyhow::Result<()> {
 
         // Create DNS solver
         let dns_solver = Arc::new(CloudflareSolver::new(
-            tls_config.dns_api_token().to_string()
+            tls_config.dns_api_token().to_string(),
         )) as Arc<dyn DnsSolver>;
 
         // Initialize certificate manager
@@ -149,8 +147,8 @@ async fn serve() -> anyhow::Result<()> {
 }
 
 async fn handle_tls_command(command: cli::TlsCommands) -> anyhow::Result<()> {
-    use statichub_server::tls::{TlsConfig, CloudflareSolver, CertificateManager, DnsSolver};
     use statichub_server::config::ServerConfig;
+    use statichub_server::tls::{CertificateManager, CloudflareSolver, DnsSolver, TlsConfig};
 
     // Load configuration
     let config = ServerConfig::from_env()?;
@@ -164,7 +162,7 @@ async fn handle_tls_command(command: cli::TlsCommands) -> anyhow::Result<()> {
             println!("Domains: {:?}", tls_config.domains());
 
             let dns_solver = Arc::new(CloudflareSolver::new(
-                tls_config.dns_api_token().to_string()
+                tls_config.dns_api_token().to_string(),
             )) as Arc<dyn DnsSolver>;
 
             let _cert_manager = CertificateManager::new(tls_config, dns_solver).await?;
@@ -257,38 +255,36 @@ async fn handle_db_command(command: cli::DbCommands) -> anyhow::Result<()> {
             }
         }
 
-        cli::DbCommands::Status => {
-            match db::migration_status(&database_url).await {
-                Ok(migrations) => {
-                    println!("Database migration status:\n");
+        cli::DbCommands::Status => match db::migration_status(&database_url).await {
+            Ok(migrations) => {
+                println!("Database migration status:\n");
 
-                    let applied: Vec<_> = migrations.iter().filter(|m| m.applied).collect();
-                    let pending: Vec<_> = migrations.iter().filter(|m| !m.applied).collect();
+                let applied: Vec<_> = migrations.iter().filter(|m| m.applied).collect();
+                let pending: Vec<_> = migrations.iter().filter(|m| !m.applied).collect();
 
-                    if !applied.is_empty() {
-                        println!("Applied migrations:");
-                        for migration in applied {
-                            println!("  ✓ {} - {}", migration.version, migration.description);
-                        }
-                    }
-
-                    if !pending.is_empty() {
-                        println!("\nPending migrations:");
-                        for migration in pending {
-                            println!("  ⏳ {} - {}", migration.version, migration.description);
-                        }
-                        println!("\n💡 Run: statichub-server db migrate");
-                    } else {
-                        println!("\n✓ All migrations up to date");
+                if !applied.is_empty() {
+                    println!("Applied migrations:");
+                    for migration in applied {
+                        println!("  ✓ {} - {}", migration.version, migration.description);
                     }
                 }
-                Err(e) => {
-                    eprintln!("❌ Failed to check migration status: {}", e);
-                    eprintln!("💡 Database might not exist. Run: statichub-server db migrate");
-                    std::process::exit(1);
+
+                if !pending.is_empty() {
+                    println!("\nPending migrations:");
+                    for migration in pending {
+                        println!("  ⏳ {} - {}", migration.version, migration.description);
+                    }
+                    println!("\n💡 Run: statichub-server db migrate");
+                } else {
+                    println!("\n✓ All migrations up to date");
                 }
             }
-        }
+            Err(e) => {
+                eprintln!("❌ Failed to check migration status: {}", e);
+                eprintln!("💡 Database might not exist. Run: statichub-server db migrate");
+                std::process::exit(1);
+            }
+        },
 
         cli::DbCommands::Reset { force } => {
             if !force {

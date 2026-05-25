@@ -1,6 +1,6 @@
-use sqlx::{SqlitePool, Transaction, Sqlite};
-use statichub_shared::ProjectConfig;
 use rand::Rng;
+use sqlx::{Sqlite, SqlitePool, Transaction};
+use statichub_shared::ProjectConfig;
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct Project {
@@ -98,12 +98,10 @@ impl Project {
         pool: &SqlitePool,
         name: &str,
     ) -> Result<Option<Project>, sqlx::Error> {
-        let project = sqlx::query_as::<_, Project>(
-            "SELECT * FROM projects WHERE name = ?"
-        )
-        .bind(name)
-        .fetch_optional(pool)
-        .await?;
+        let project = sqlx::query_as::<_, Project>("SELECT * FROM projects WHERE name = ?")
+            .bind(name)
+            .fetch_optional(pool)
+            .await?;
 
         Ok(project)
     }
@@ -112,26 +110,19 @@ impl Project {
         tx: &mut Transaction<'_, Sqlite>,
         name: &str,
     ) -> Result<Option<Project>, sqlx::Error> {
-        let project = sqlx::query_as::<_, Project>(
-            "SELECT * FROM projects WHERE name = ?"
-        )
-        .bind(name)
-        .fetch_optional(&mut **tx)
-        .await?;
+        let project = sqlx::query_as::<_, Project>("SELECT * FROM projects WHERE name = ?")
+            .bind(name)
+            .fetch_optional(&mut **tx)
+            .await?;
 
         Ok(project)
     }
 
-    pub async fn find_by_id(
-        pool: &SqlitePool,
-        id: i64,
-    ) -> Result<Option<Project>, sqlx::Error> {
-        let project = sqlx::query_as::<_, Project>(
-            "SELECT * FROM projects WHERE id = ?"
-        )
-        .bind(id)
-        .fetch_optional(pool)
-        .await?;
+    pub async fn find_by_id(pool: &SqlitePool, id: i64) -> Result<Option<Project>, sqlx::Error> {
+        let project = sqlx::query_as::<_, Project>("SELECT * FROM projects WHERE id = ?")
+            .bind(id)
+            .fetch_optional(pool)
+            .await?;
 
         Ok(project)
     }
@@ -140,12 +131,10 @@ impl Project {
         pool: &SqlitePool,
         subdomain: &str,
     ) -> Result<Option<Project>, sqlx::Error> {
-        let project = sqlx::query_as::<_, Project>(
-            "SELECT * FROM projects WHERE subdomain = ?"
-        )
-        .bind(subdomain)
-        .fetch_optional(pool)
-        .await?;
+        let project = sqlx::query_as::<_, Project>("SELECT * FROM projects WHERE subdomain = ?")
+            .bind(subdomain)
+            .fetch_optional(pool)
+            .await?;
 
         Ok(project)
     }
@@ -155,7 +144,7 @@ impl Project {
         owner_id: i64,
     ) -> Result<Vec<Project>, sqlx::Error> {
         let projects = sqlx::query_as::<_, Project>(
-            "SELECT * FROM projects WHERE owner_id = ? ORDER BY created_at DESC"
+            "SELECT * FROM projects WHERE owner_id = ? ORDER BY created_at DESC",
         )
         .bind(owner_id)
         .fetch_all(pool)
@@ -165,7 +154,8 @@ impl Project {
     }
 
     pub fn get_config(&self) -> Option<ProjectConfig> {
-        self.config.as_ref()
+        self.config
+            .as_ref()
             .and_then(|s| serde_json::from_str(s).ok())
     }
 }
@@ -201,10 +191,12 @@ mod tests {
         let pool = crate::test_utils::create_test_pool().await.unwrap();
 
         let user = User::create(&pool, "google", "123", "test@example.com", "testuser")
-            .await.unwrap();
+            .await
+            .unwrap();
 
         let project = Project::create_owned(&pool, user.id, "my-app", None)
-            .await.unwrap();
+            .await
+            .unwrap();
 
         assert!(!project.is_anonymous);
         assert_eq!(project.name, "my-app");

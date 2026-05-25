@@ -5,8 +5,6 @@ use axum::{
 };
 use serde_json::Value;
 use sqlx::SqlitePool;
-use std::sync::Arc;
-use tower::ServiceExt;
 use statichub_server::{
     api::{AuthState, DeployState},
     config::ServerConfig,
@@ -14,6 +12,8 @@ use statichub_server::{
     models::{Deploy, Project, User},
     storage::FilesystemStorage,
 };
+use std::sync::Arc;
+use tower::ServiceExt;
 
 fn create_test_router_with_middleware(
     deploy_state: Arc<DeployState>,
@@ -23,11 +23,10 @@ fn create_test_router_with_middleware(
         port: 3000,
         allowed_domains: vec!["localhost".to_string()],
     };
-    create_router(deploy_state, auth_state)
-        .layer(middleware::from_fn_with_state(
-            config,
-            statichub_server::middleware::host_validation_middleware,
-        ))
+    create_router(deploy_state, auth_state).layer(middleware::from_fn_with_state(
+        config,
+        statichub_server::middleware::host_validation_middleware,
+    ))
 }
 
 #[sqlx::test]

@@ -46,41 +46,36 @@ impl IntoResponse for AppError {
         let (status, error_code, message) = match self {
             AppError::Database(e) => {
                 tracing::error!("Database error: {}", e);
-                (StatusCode::INTERNAL_SERVER_ERROR, "database_error", e.to_string())
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "database_error",
+                    e.to_string(),
+                )
             }
             AppError::Storage(e) => {
                 tracing::error!("Storage error: {}", e);
                 (StatusCode::INTERNAL_SERVER_ERROR, "storage_error", e)
             }
-            AppError::NotFound(msg) => {
-                (StatusCode::NOT_FOUND, "not_found", msg)
-            }
-            AppError::Unauthorized => {
-                (StatusCode::UNAUTHORIZED, "unauthorized", "Unauthorized".to_string())
-            }
-            AppError::Forbidden(msg) => {
-                (StatusCode::FORBIDDEN, "forbidden", msg)
-            }
-            AppError::BadRequest(msg) => {
-                (StatusCode::BAD_REQUEST, "bad_request", msg)
-            }
-            AppError::Conflict(msg) => {
-                (StatusCode::CONFLICT, "conflict", msg)
-            }
+            AppError::NotFound(msg) => (StatusCode::NOT_FOUND, "not_found", msg),
+            AppError::Unauthorized => (
+                StatusCode::UNAUTHORIZED,
+                "unauthorized",
+                "Unauthorized".to_string(),
+            ),
+            AppError::Forbidden(msg) => (StatusCode::FORBIDDEN, "forbidden", msg),
+            AppError::BadRequest(msg) => (StatusCode::BAD_REQUEST, "bad_request", msg),
+            AppError::Conflict(msg) => (StatusCode::CONFLICT, "conflict", msg),
             AppError::Internal(msg) => {
                 tracing::error!("Internal error: {}", msg);
                 (StatusCode::INTERNAL_SERVER_ERROR, "internal_error", msg)
             }
-            AppError::InvalidHost(msg) => {
-                (StatusCode::BAD_REQUEST, "invalid_host", msg)
-            }
-            AppError::DomainNotAllowed(msg) => {
-                (StatusCode::FORBIDDEN, "domain_not_allowed", msg)
-            }
-            AppError::MissingHost => {
-                (StatusCode::INTERNAL_SERVER_ERROR, "missing_host",
-                 "Host information not found in request".to_string())
-            }
+            AppError::InvalidHost(msg) => (StatusCode::BAD_REQUEST, "invalid_host", msg),
+            AppError::DomainNotAllowed(msg) => (StatusCode::FORBIDDEN, "domain_not_allowed", msg),
+            AppError::MissingHost => (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                "missing_host",
+                "Host information not found in request".to_string(),
+            ),
         };
 
         let body = Json(ErrorResponse {

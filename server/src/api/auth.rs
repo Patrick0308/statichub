@@ -33,9 +33,9 @@ pub struct PendingSession {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
-    pub sub: String,      // user_id
+    pub sub: String, // user_id
     pub email: String,
-    pub exp: usize,       // expiry timestamp
+    pub exp: usize, // expiry timestamp
 }
 
 #[derive(Debug, Deserialize)]
@@ -51,7 +51,7 @@ pub struct LoginResponse {
 #[derive(Debug, Deserialize)]
 pub struct CallbackQuery {
     pub code: String,
-    pub state: String,  // session_id
+    pub state: String, // session_id
 }
 
 #[derive(Debug, Serialize)]
@@ -143,9 +143,7 @@ pub async fn login_google(
     // Store pending session
     let mut sessions = state.sessions.write().await;
     if sessions.contains_key(&payload.session_id) {
-        return Err(AppError::Conflict(
-            "Session ID already in use".to_string()
-        ));
+        return Err(AppError::Conflict("Session ID already in use".to_string()));
     }
     sessions.insert(
         payload.session_id,
@@ -186,8 +184,7 @@ pub async fn callback_google(
         .map_err(|e| AppError::Internal(format!("Failed to parse user info: {}", e)))?;
 
     // Create or update user
-    let user = User::find_by_oauth(&state.pool, "google", &user_info.id)
-        .await?;
+    let user = User::find_by_oauth(&state.pool, "google", &user_info.id).await?;
 
     let user = if let Some(existing_user) = user {
         existing_user
@@ -210,9 +207,12 @@ pub async fn callback_google(
     if let Some(session) = sessions.get_mut(&query.state) {
         session.token = Some(jwt);
     } else {
-        tracing::warn!("OAuth callback for expired/unknown session: {}", query.state);
+        tracing::warn!(
+            "OAuth callback for expired/unknown session: {}",
+            query.state
+        );
         return Err(AppError::BadRequest(
-            "Session expired. Please restart authentication.".to_string()
+            "Session expired. Please restart authentication.".to_string(),
         ));
     }
 
@@ -229,9 +229,7 @@ pub async fn auth_status(
     axum::extract::Path(session_id): axum::extract::Path<String>,
 ) -> Result<Json<StatusResponse>> {
     let sessions = state.sessions.read().await;
-    let token = sessions
-        .get(&session_id)
-        .and_then(|s| s.token.clone());
+    let token = sessions.get(&session_id).and_then(|s| s.token.clone());
 
     Ok(Json(StatusResponse { token }))
 }
@@ -242,9 +240,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_jwt_generation() {
-        let pool = sqlx::SqlitePool::connect(":memory:")
-            .await
-            .unwrap();
+        let pool = sqlx::SqlitePool::connect(":memory:").await.unwrap();
 
         let state = AuthState::new(
             pool,
@@ -265,9 +261,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_cleanup() {
-        let pool = sqlx::SqlitePool::connect(":memory:")
-            .await
-            .unwrap();
+        let pool = sqlx::SqlitePool::connect(":memory:").await.unwrap();
 
         let state = AuthState::new(
             pool,
@@ -306,9 +300,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_session_update_validates_existence() {
-        let pool = sqlx::SqlitePool::connect(":memory:")
-            .await
-            .unwrap();
+        let pool = sqlx::SqlitePool::connect(":memory:").await.unwrap();
 
         let state = AuthState::new(
             pool,
@@ -354,9 +346,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_duplicate_session_detection() {
-        let pool = sqlx::SqlitePool::connect(":memory:")
-            .await
-            .unwrap();
+        let pool = sqlx::SqlitePool::connect(":memory:").await.unwrap();
 
         let state = AuthState::new(
             pool,

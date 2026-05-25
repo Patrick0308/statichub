@@ -1,12 +1,15 @@
-use sqlx::{SqlitePool, sqlite::{SqlitePoolOptions, SqliteConnectOptions}};
-use std::time::Duration;
+use sqlx::{
+    sqlite::{SqliteConnectOptions, SqlitePoolOptions},
+    SqlitePool,
+};
 use std::str::FromStr;
+use std::time::Duration;
 
 /// Create database connection pool without running migrations
 pub async fn create_pool(database_url: &str) -> Result<SqlitePool, sqlx::Error> {
     let connect_options = SqliteConnectOptions::from_str(database_url)?
         .foreign_keys(true)
-        .create_if_missing(false);  // Do NOT auto-create database
+        .create_if_missing(false); // Do NOT auto-create database
 
     let pool = SqlitePoolOptions::new()
         .max_connections(5)
@@ -29,9 +32,7 @@ pub async fn migrate(database_url: &str) -> Result<(), sqlx::Error> {
         .connect_with(connect_options)
         .await?;
 
-    sqlx::migrate!("./migrations")
-        .run(&pool)
-        .await?;
+    sqlx::migrate!("./migrations").run(&pool).await?;
 
     Ok(())
 }
@@ -40,18 +41,18 @@ pub async fn migrate(database_url: &str) -> Result<(), sqlx::Error> {
 pub async fn migration_status(database_url: &str) -> Result<Vec<MigrationInfo>, sqlx::Error> {
     let pool = create_pool(database_url).await?;
 
-    let applied: Vec<(i64, String)> = sqlx::query_as(
-        "SELECT version, description FROM _sqlx_migrations ORDER BY version"
-    )
-    .fetch_all(&pool)
-    .await
-    .unwrap_or_default();
+    let applied: Vec<(i64, String)> =
+        sqlx::query_as("SELECT version, description FROM _sqlx_migrations ORDER BY version")
+            .fetch_all(&pool)
+            .await
+            .unwrap_or_default();
 
     let embedded = sqlx::migrate!("./migrations").migrations;
 
     let mut result = Vec::new();
     for migration in embedded.iter() {
-        let applied_version = applied.iter()
+        let applied_version = applied
+            .iter()
             .find(|(v, _)| *v == migration.version)
             .is_some();
 
@@ -86,7 +87,7 @@ pub async fn reset(database_url: &str) -> Result<(), sqlx::Error> {
 
     // Get all table names
     let tables: Vec<(String,)> = sqlx::query_as(
-        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+        "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'",
     )
     .fetch_all(&pool)
     .await?;
@@ -99,9 +100,7 @@ pub async fn reset(database_url: &str) -> Result<(), sqlx::Error> {
     }
 
     // Re-run migrations
-    sqlx::migrate!("./migrations")
-        .run(&pool)
-        .await?;
+    sqlx::migrate!("./migrations").run(&pool).await?;
 
     Ok(())
 }
@@ -129,7 +128,13 @@ mod tests {
             .map(|row| row.get::<String, _>("name"))
             .collect();
 
-        let expected_tables = vec!["users", "projects", "deploys", "deploy_tokens", "oauth_sessions"];
+        let expected_tables = vec![
+            "users",
+            "projects",
+            "deploys",
+            "deploy_tokens",
+            "oauth_sessions",
+        ];
         for table in expected_tables {
             assert!(
                 table_names.contains(&table.to_string()),

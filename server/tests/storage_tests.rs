@@ -1,6 +1,6 @@
-use statichub_server::storage::{Storage, FilesystemStorage, StorageError};
-use tempfile::TempDir;
+use statichub_server::storage::{FilesystemStorage, Storage, StorageError};
 use std::fs;
+use tempfile::TempDir;
 
 #[tokio::test]
 async fn test_store_and_retrieve_deploy() {
@@ -11,7 +11,10 @@ async fn test_store_and_retrieve_deploy() {
     let content = b"hello world";
 
     // Store file
-    storage.store_file(deploy_id, "index.html", content).await.unwrap();
+    storage
+        .store_file(deploy_id, "index.html", content)
+        .await
+        .unwrap();
 
     // Retrieve file
     let retrieved = storage.get_file(deploy_id, "index.html").await.unwrap();
@@ -25,8 +28,14 @@ async fn test_list_files_in_deploy() {
 
     let deploy_id = "test-project/deploy-1";
 
-    storage.store_file(deploy_id, "index.html", b"<html>").await.unwrap();
-    storage.store_file(deploy_id, "app.js", b"console.log()").await.unwrap();
+    storage
+        .store_file(deploy_id, "index.html", b"<html>")
+        .await
+        .unwrap();
+    storage
+        .store_file(deploy_id, "app.js", b"console.log()")
+        .await
+        .unwrap();
 
     let files = storage.list_files(deploy_id).await.unwrap();
     assert_eq!(files.len(), 2);
@@ -38,7 +47,10 @@ async fn test_delete_deploy() {
     let storage = FilesystemStorage::new(temp.path().to_path_buf());
 
     let deploy_id = "test-project/deploy-1";
-    storage.store_file(deploy_id, "index.html", b"<html>").await.unwrap();
+    storage
+        .store_file(deploy_id, "index.html", b"<html>")
+        .await
+        .unwrap();
 
     storage.delete_deploy(deploy_id).await.unwrap();
 
@@ -56,7 +68,9 @@ async fn test_path_traversal_in_file_path_rejected() {
     let deploy_id = "test-project/deploy-1";
 
     // Attempt to traverse up with .. in path
-    let result = storage.store_file(deploy_id, "../../../etc/passwd", b"malicious").await;
+    let result = storage
+        .store_file(deploy_id, "../../../etc/passwd", b"malicious")
+        .await;
     assert!(result.is_err());
     assert!(matches!(result.unwrap_err(), StorageError::InvalidPath(_)));
 }
@@ -69,7 +83,9 @@ async fn test_path_traversal_in_deploy_id_rejected() {
     // Attempt to traverse up with .. in deploy_id
     let malicious_deploy_id = "../../etc";
 
-    let result = storage.store_file(malicious_deploy_id, "passwd", b"malicious").await;
+    let result = storage
+        .store_file(malicious_deploy_id, "passwd", b"malicious")
+        .await;
     assert!(result.is_err());
     assert!(matches!(result.unwrap_err(), StorageError::InvalidPath(_)));
 }
@@ -93,7 +109,9 @@ async fn test_absolute_path_in_deploy_id_rejected() {
     let storage = FilesystemStorage::new(temp.path().to_path_buf());
 
     // Attempt to use absolute path
-    let result = storage.store_file("/etc/passwd", "index.html", b"malicious").await;
+    let result = storage
+        .store_file("/etc/passwd", "index.html", b"malicious")
+        .await;
     assert!(result.is_err());
     assert!(matches!(result.unwrap_err(), StorageError::InvalidPath(_)));
 }
@@ -106,7 +124,9 @@ async fn test_absolute_path_in_file_path_rejected() {
     let deploy_id = "test-project/deploy-1";
 
     // Attempt to use absolute path in file path
-    let result = storage.store_file(deploy_id, "/etc/passwd", b"malicious").await;
+    let result = storage
+        .store_file(deploy_id, "/etc/passwd", b"malicious")
+        .await;
     assert!(result.is_err());
     assert!(matches!(result.unwrap_err(), StorageError::InvalidPath(_)));
 }
@@ -152,7 +172,10 @@ async fn test_canonical_path_validation() {
 
     // Try to use a deploy_id that would escape through path normalization
     // Even if we somehow bypass the simple checks, canonical validation should catch it
-    let deploy_id = format!("valid/../{}", outside_dir.file_name().unwrap().to_str().unwrap());
+    let deploy_id = format!(
+        "valid/../{}",
+        outside_dir.file_name().unwrap().to_str().unwrap()
+    );
 
     let result = storage.store_file(&deploy_id, "test.txt", b"content").await;
     // Should be rejected either by the .. check or canonical validation
@@ -176,7 +199,13 @@ async fn test_valid_nested_deploy_ids_allowed() {
     ];
 
     for deploy_id in valid_deploy_ids {
-        let result = storage.store_file(deploy_id, "index.html", b"content").await;
-        assert!(result.is_ok(), "Valid deploy_id '{}' should be allowed", deploy_id);
+        let result = storage
+            .store_file(deploy_id, "index.html", b"content")
+            .await;
+        assert!(
+            result.is_ok(),
+            "Valid deploy_id '{}' should be allowed",
+            deploy_id
+        );
     }
 }

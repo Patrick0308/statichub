@@ -1,11 +1,16 @@
+use crate::{
+    error::{AppError, Result},
+    middleware::RequestHost,
+    models::{Deploy, Project},
+    storage::Storage,
+};
 use axum::{
-    extract::{State, Multipart},
+    extract::{Multipart, State},
     Json,
 };
 use sqlx::SqlitePool;
+use statichub_shared::{build_project_url, DeployResponse};
 use std::sync::Arc;
-use statichub_shared::{DeployResponse, build_project_url};
-use crate::{error::{Result, AppError}, storage::Storage, models::{Project, Deploy}, middleware::RequestHost};
 
 pub struct DeployState {
     pub pool: SqlitePool,
@@ -41,7 +46,8 @@ pub async fn create_anonymous_deploy(
         &storage_path,
         &mut file_count,
         &mut total_size,
-    ).await;
+    )
+    .await;
 
     // If storage fails, mark deploy as failed before returning error
     if let Err(e) = upload_result {
@@ -50,7 +56,14 @@ pub async fn create_anonymous_deploy(
     }
 
     // Update deploy status
-    Deploy::update_status(&state.pool, deploy.id, "ready", file_count, total_size as i64).await?;
+    Deploy::update_status(
+        &state.pool,
+        deploy.id,
+        "ready",
+        file_count,
+        total_size as i64,
+    )
+    .await?;
 
     // Update project current_deploy_id
     sqlx::query("UPDATE projects SET current_deploy_id = ? WHERE id = ?")
@@ -79,9 +92,11 @@ async fn process_multipart_files(
     const MAX_TOTAL_SIZE: u64 = 500 * 1024 * 1024; // 500MB total
     const MAX_FILE_COUNT: i64 = 1000; // Max 1000 files
 
-    while let Some(field) = multipart.next_field().await
-        .map_err(|e| AppError::BadRequest(format!("Invalid multipart data: {}", e)))? {
-
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|e| AppError::BadRequest(format!("Invalid multipart data: {}", e)))?
+    {
         // Skip fields without filename (e.g., "config" text field)
         let filename = match field.file_name() {
             Some(name) => name.to_string(),
@@ -91,7 +106,9 @@ async fn process_multipart_files(
         let sanitized_filename = sanitize_filename(&filename)?;
 
         // Read file data with error handling
-        let data = field.bytes().await
+        let data = field
+            .bytes()
+            .await
             .map_err(|e| AppError::BadRequest(format!("Failed to read file data: {}", e)))?;
 
         // Check file size limits
@@ -105,19 +122,21 @@ async fn process_multipart_files(
         *total_size += data.len() as u64;
         if *total_size > MAX_TOTAL_SIZE {
             return Err(AppError::BadRequest(
-                "Total upload size exceeds maximum of 500MB".to_string()
+                "Total upload size exceeds maximum of 500MB".to_string(),
             ));
         }
 
         *file_count += 1;
         if *file_count > MAX_FILE_COUNT {
             return Err(AppError::BadRequest(
-                "Too many files (maximum 1000)".to_string()
+                "Too many files (maximum 1000)".to_string(),
             ));
         }
 
         // Store the file
-        storage.store_file(storage_path, &sanitized_filename, &data).await
+        storage
+            .store_file(storage_path, &sanitized_filename, &data)
+            .await
             .map_err(|e| AppError::Storage(e.to_string()))?;
     }
 

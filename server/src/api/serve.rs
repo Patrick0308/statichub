@@ -1,5 +1,6 @@
 use crate::{
     api::DeployState,
+    config::parse_host,
     error::{AppError, Result},
     middleware::RequestHost,
     models::Project,
@@ -10,8 +11,8 @@ use axum::{
     http::{header, HeaderMap, HeaderValue, StatusCode},
     response::{IntoResponse, Response},
 };
-use std::sync::Arc;
 use statichub_shared::ProjectConfig;
+use std::sync::Arc;
 
 pub async fn serve_static_file(
     Host(hostname): Host,
@@ -19,12 +20,26 @@ pub async fn serve_static_file(
     axum::http::request::Parts { extensions, .. }: axum::http::request::Parts,
     request: Request,
 ) -> Result<Response> {
-    // Extract host from request
+    let (hostname, _) =
+        parse_host(&hostname).map_err(|e| AppError::BadRequest(format!("Invalid hostname: {}", e)))?;
+
     let request_host = extensions
         .get::<RequestHost>()
         .ok_or(AppError::MissingHost)?;
 
     let base_domain = &request_host.base_domain;
+    let request_path = request.uri().path();
+
+    // Serve built-in homepage for base domain and www alias.
+    if hostname == *base_domain || hostname == format!("www.{}", base_domain) {
+        if let Some(response) = crate::web::homepage::serve_home(request_path) {
+            return Ok(response);
+        }
+        return Err(AppError::NotFound(format!(
+            "Homepage asset not found: {}",
+            request_path
+        )));
+    }
 
     // Subdomain lookup
     let subdomain = extract_subdomain(&hostname, base_domain)?;
@@ -44,14 +59,13 @@ pub async fn serve_static_file(
         .await?
         .ok_or_else(|| AppError::NotFound(format!("Deploy not found: {}", deploy_id)))?;
 
-    let request_path = request.uri().path();
-
     // Check for redirects BEFORE resolving files
     if let Some(redirects) = &config.redirects {
         for redirect in redirects {
             // Match exact path or path prefix
             if request_path == redirect.from
-                || request_path.starts_with(&format!("{}/", redirect.from)) {
+                || request_path.starts_with(&format!("{}/", redirect.from))
+            {
                 let mut headers = HeaderMap::new();
                 headers.insert(
                     header::LOCATION,
@@ -59,8 +73,9 @@ pub async fn serve_static_file(
                         .map_err(|_| AppError::BadRequest("Invalid redirect URL".to_string()))?,
                 );
                 return Ok((
-                    StatusCode::from_u16(redirect.status)
-                        .map_err(|_| AppError::BadRequest("Invalid redirect status code".to_string()))?,
+                    StatusCode::from_u16(redirect.status).map_err(|_| {
+                        AppError::BadRequest("Invalid redirect status code".to_string())
+                    })?,
                     headers,
                 )
                     .into_response());
@@ -69,7 +84,8 @@ pub async fn serve_static_file(
     }
 
     // Resolve file path
-    let file_path = resolve_file_path(request_path, &config, &state.storage, &deploy.storage_path).await?;
+    let file_path =
+        resolve_file_path(request_path, &config, &state.storage, &deploy.storage_path).await?;
 
     // Get file content
     let content = state
@@ -93,7 +109,7 @@ pub async fn serve_static_file(
     headers.insert(
         "content-type",
         HeaderValue::from_str(&content_type)
-            .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream"))
+            .unwrap_or_else(|_| HeaderValue::from_static("application/octet-stream")),
     );
 
     // Apply custom headers from config
@@ -173,7 +189,10 @@ async fn resolve_file_path(
     }
 
     // File not found
-    Err(AppError::NotFound(format!("File not found: {}", request_path)))
+    Err(AppError::NotFound(format!(
+        "File not found: {}",
+        request_path
+    )))
 }
 
 async fn file_exists(storage: &Arc<dyn Storage>, deploy_path: &str, file_path: &str) -> bool {

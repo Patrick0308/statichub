@@ -4,18 +4,21 @@ mod upload;
 mod client;
 
 use anyhow::Context;
-use clap::{Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(name = "statichub")]
 #[command(about = "Static web publishing for frontend developers", long_about = None)]
 struct Cli {
     #[command(subcommand)]
-    command: Commands,
+    command: Option<Commands>,
 }
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Print version
+    Version,
+
     /// Deploy static files
     Deploy {
         /// Directory to deploy (default: current directory)
@@ -58,7 +61,16 @@ enum Commands {
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
 
-    match cli.command {
+    let Some(command) = cli.command else {
+        Cli::command().print_help()?;
+        println!();
+        return Ok(());
+    };
+
+    match command {
+        Commands::Version => {
+            println!("{}", env!("CARGO_PKG_VERSION"));
+        }
         Commands::Deploy { directory, name, config: config_path } => {
             let dir = if let Some(d) = directory.as_ref() {
                 std::path::PathBuf::from(d)

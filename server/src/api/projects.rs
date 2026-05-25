@@ -2,8 +2,8 @@ use axum::{
     extract::{Multipart, Path, State},
     Extension, Json,
 };
-use std::sync::Arc;
 use statichub_shared::{build_project_url, DeployResponse};
+use std::sync::Arc;
 
 use crate::{
     error::{AppError, Result},
@@ -93,7 +93,14 @@ pub async fn create_project_deploy(
     }
 
     // Update deploy status
-    Deploy::update_status(&state.pool, deploy.id, "ready", file_count, total_size as i64).await?;
+    Deploy::update_status(
+        &state.pool,
+        deploy.id,
+        "ready",
+        file_count,
+        total_size as i64,
+    )
+    .await?;
 
     Ok(Json(DeployResponse {
         url: build_project_url(&project.subdomain, &request_host.to_string()),

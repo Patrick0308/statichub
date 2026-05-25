@@ -1,17 +1,22 @@
+pub mod api;
+pub mod cli;
 pub mod config;
 pub mod db;
-pub mod storage;
-pub mod models;
 pub mod error;
-pub mod api;
 pub mod middleware;
-pub mod cli;
+pub mod models;
+pub mod storage;
 pub mod tls;
+pub mod web;
 
 // Test utilities available for integration tests
 pub mod test_utils;
 
-use axum::{middleware as axum_middleware, routing::{get, post}, Router};
+use axum::{
+    middleware as axum_middleware,
+    routing::{get, post},
+    Router,
+};
 use std::sync::Arc;
 use tower_http::trace::{DefaultMakeSpan, TraceLayer};
 
@@ -31,7 +36,10 @@ pub fn create_router(
 
     // Authenticated routes with JWT middleware
     let authenticated_routes = Router::new()
-        .route("/api/projects/:name/deploys", post(api::create_project_deploy))
+        .route(
+            "/api/projects/:name/deploys",
+            post(api::create_project_deploy),
+        )
         .route("/api/projects", get(api::list_projects))
         .route("/api/projects/:name", get(api::get_project_info))
         .route("/api/projects/:name/rollback", post(api::rollback_project))

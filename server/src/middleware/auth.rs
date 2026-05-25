@@ -17,7 +17,7 @@ pub struct AuthUser {
 
 #[derive(Debug, Serialize, Deserialize)]
 struct Claims {
-    pub sub: String,  // user_id as string
+    pub sub: String, // user_id as string
     pub email: String,
     pub exp: usize,
 }
@@ -43,18 +43,16 @@ pub async fn auth_middleware(
     let decoding_key = DecodingKey::from_secret(state.jwt_secret.as_bytes());
     let validation = Validation::default();
 
-    let token_data = decode::<Claims>(token, &decoding_key, &validation)
-        .map_err(|e| {
-            tracing::warn!("JWT validation failed: {}", e);
-            AppError::Unauthorized
-        })?;
+    let token_data = decode::<Claims>(token, &decoding_key, &validation).map_err(|e| {
+        tracing::warn!("JWT validation failed: {}", e);
+        AppError::Unauthorized
+    })?;
 
     // Parse user_id from sub claim
-    let user_id = token_data.claims.sub.parse::<i64>()
-        .map_err(|e| {
-            tracing::error!("Failed to parse user_id from JWT sub claim: {}", e);
-            AppError::Unauthorized
-        })?;
+    let user_id = token_data.claims.sub.parse::<i64>().map_err(|e| {
+        tracing::error!("Failed to parse user_id from JWT sub claim: {}", e);
+        AppError::Unauthorized
+    })?;
 
     // Add AuthUser to request extensions
     let auth_user = AuthUser {
@@ -146,10 +144,7 @@ mod tests {
             ))
             .with_state(auth_state);
 
-        let request = Request::builder()
-            .uri("/test")
-            .body(Body::empty())
-            .unwrap();
+        let request = Request::builder().uri("/test").body(Body::empty()).unwrap();
 
         let response = app.oneshot(request).await.unwrap();
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);

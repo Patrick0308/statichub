@@ -1,4 +1,4 @@
-use anyhow::{Result, Context, bail};
+use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
@@ -81,7 +81,8 @@ impl CloudflareSolver {
 
         let url = format!("{}/client/v4/zones?name={}", self.base_url, base_domain);
 
-        let response = self.client
+        let response = self
+            .client
             .get(&url)
             .header("Authorization", format!("Bearer {}", self.api_token))
             .send()
@@ -95,15 +96,14 @@ impl CloudflareSolver {
 
         if !api_response.success {
             if let Some(errors) = api_response.errors {
-                let error_msgs: Vec<String> = errors.iter()
-                    .map(|e| e.message.clone())
-                    .collect();
+                let error_msgs: Vec<String> = errors.iter().map(|e| e.message.clone()).collect();
                 bail!("Cloudflare API error: {}", error_msgs.join(", "));
             }
             bail!("Cloudflare API request failed");
         }
 
-        api_response.result
+        api_response
+            .result
             .into_iter()
             .find(|z| z.name == base_domain)
             .map(|z| z.id)
@@ -126,7 +126,8 @@ impl DnsSolver for CloudflareSolver {
             ttl: 120, // 2 minutes
         };
 
-        let response = self.client
+        let response = self
+            .client
             .post(&url)
             .header("Authorization", format!("Bearer {}", self.api_token))
             .json(&record)
@@ -145,9 +146,7 @@ impl DnsSolver for CloudflareSolver {
 
         if !api_response.success {
             if let Some(errors) = api_response.errors {
-                let error_msgs: Vec<String> = errors.iter()
-                    .map(|e| e.message.clone())
-                    .collect();
+                let error_msgs: Vec<String> = errors.iter().map(|e| e.message.clone()).collect();
                 bail!("Failed to create TXT record: {}", error_msgs.join(", "));
             }
             bail!("Failed to create TXT record");
@@ -167,7 +166,8 @@ impl DnsSolver for CloudflareSolver {
             self.base_url, zone_id, record_name
         );
 
-        let response = self.client
+        let response = self
+            .client
             .get(&list_url)
             .header("Authorization", format!("Bearer {}", self.api_token))
             .send()
@@ -185,16 +185,15 @@ impl DnsSolver for CloudflareSolver {
 
         if !api_response.success {
             if let Some(errors) = api_response.errors {
-                let error_msgs: Vec<String> = errors.iter()
-                    .map(|e| e.message.clone())
-                    .collect();
+                let error_msgs: Vec<String> = errors.iter().map(|e| e.message.clone()).collect();
                 bail!("Failed to list TXT records: {}", error_msgs.join(", "));
             }
             bail!("Failed to list TXT records");
         }
 
         // Find matching record
-        let record = api_response.result
+        let record = api_response
+            .result
             .into_iter()
             .find(|r| r.content == value)
             .context(format!("TXT record not found: {}", record_name))?;
@@ -205,7 +204,8 @@ impl DnsSolver for CloudflareSolver {
             self.base_url, zone_id, record.id
         );
 
-        let response = self.client
+        let response = self
+            .client
             .delete(&delete_url)
             .header("Authorization", format!("Bearer {}", self.api_token))
             .send()
@@ -223,9 +223,7 @@ impl DnsSolver for CloudflareSolver {
 
         if !api_response.success {
             if let Some(errors) = api_response.errors {
-                let error_msgs: Vec<String> = errors.iter()
-                    .map(|e| e.message.clone())
-                    .collect();
+                let error_msgs: Vec<String> = errors.iter().map(|e| e.message.clone()).collect();
                 bail!("Failed to delete TXT record: {}", error_msgs.join(", "));
             }
             bail!("Failed to delete TXT record");
@@ -242,8 +240,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_zone_id_success() {
-        use wiremock::{MockServer, Mock, ResponseTemplate};
-        use wiremock::matchers::{method, path, header};
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
 
         let mock_server = MockServer::start().await;
 
@@ -262,10 +260,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let solver = CloudflareSolver::new_with_base_url(
-            "test_token".to_string(),
-            mock_server.uri(),
-        );
+        let solver =
+            CloudflareSolver::new_with_base_url("test_token".to_string(), mock_server.uri());
 
         let zone_id = solver.get_zone_id("statichub.dev").await.unwrap();
         assert_eq!(zone_id, "zone_123");
@@ -273,8 +269,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_zone_id_not_found() {
-        use wiremock::{MockServer, Mock, ResponseTemplate};
-        use wiremock::matchers::{method, path, header};
+        use wiremock::matchers::{header, method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
 
         let mock_server = MockServer::start().await;
 
@@ -288,10 +284,8 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let solver = CloudflareSolver::new_with_base_url(
-            "test_token".to_string(),
-            mock_server.uri(),
-        );
+        let solver =
+            CloudflareSolver::new_with_base_url("test_token".to_string(), mock_server.uri());
 
         let result = solver.get_zone_id("notfound.dev").await;
         assert!(result.is_err());
@@ -300,8 +294,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_set_txt_record_success() {
-        use wiremock::{MockServer, Mock, ResponseTemplate};
-        use wiremock::matchers::{method, path, header, body_json};
+        use wiremock::matchers::{body_json, header, method, path};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
 
         let mock_server = MockServer::start().await;
 
@@ -332,20 +326,19 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let solver = CloudflareSolver::new_with_base_url(
-            "test_token".to_string(),
-            mock_server.uri(),
-        );
+        let solver =
+            CloudflareSolver::new_with_base_url("test_token".to_string(), mock_server.uri());
 
-        solver.set_txt_record("app.statichub.dev", "test_value_123")
+        solver
+            .set_txt_record("app.statichub.dev", "test_value_123")
             .await
             .unwrap();
     }
 
     #[tokio::test]
     async fn test_delete_txt_record_success() {
-        use wiremock::{MockServer, Mock, ResponseTemplate};
-        use wiremock::matchers::{method, path, path_regex, header};
+        use wiremock::matchers::{header, method, path, path_regex};
+        use wiremock::{Mock, MockServer, ResponseTemplate};
 
         let mock_server = MockServer::start().await;
 
@@ -384,12 +377,11 @@ mod tests {
             .mount(&mock_server)
             .await;
 
-        let solver = CloudflareSolver::new_with_base_url(
-            "test_token".to_string(),
-            mock_server.uri(),
-        );
+        let solver =
+            CloudflareSolver::new_with_base_url("test_token".to_string(), mock_server.uri());
 
-        solver.delete_txt_record("app.statichub.dev", "test_value_123")
+        solver
+            .delete_txt_record("app.statichub.dev", "test_value_123")
             .await
             .unwrap();
     }

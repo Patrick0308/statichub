@@ -15,16 +15,17 @@ fn create_test_router_with_middleware(
         port: 3000,
         allowed_domains: vec!["localhost".to_string()],
     };
-    create_router(deploy_state, auth_state)
-        .layer(middleware::from_fn_with_state(
-            config,
-            statichub_server::middleware::host_validation_middleware,
-        ))
+    create_router(deploy_state, auth_state).layer(middleware::from_fn_with_state(
+        config,
+        statichub_server::middleware::host_validation_middleware,
+    ))
 }
 
 #[tokio::test]
 async fn test_authenticated_deploy_creates_new_project() {
-    let pool = statichub_server::test_utils::create_test_pool().await.unwrap();
+    let pool = statichub_server::test_utils::create_test_pool()
+        .await
+        .unwrap();
 
     // Create a test user
     let user = models::User::create(&pool, "google", "test123", "test@example.com", "testuser")
@@ -33,7 +34,9 @@ async fn test_authenticated_deploy_creates_new_project() {
 
     // Setup states
     let temp_storage_dir = tempfile::tempdir().unwrap();
-    let storage = Arc::new(storage::FilesystemStorage::new(temp_storage_dir.path().to_path_buf())) as Arc<dyn storage::Storage>;
+    let storage = Arc::new(storage::FilesystemStorage::new(
+        temp_storage_dir.path().to_path_buf(),
+    )) as Arc<dyn storage::Storage>;
 
     let deploy_state = Arc::new(api::DeployState {
         pool: pool.clone(),
@@ -101,10 +104,14 @@ async fn test_authenticated_deploy_creates_new_project() {
 
 #[tokio::test]
 async fn test_authenticated_deploy_requires_jwt() {
-    let pool = statichub_server::test_utils::create_test_pool().await.unwrap();
+    let pool = statichub_server::test_utils::create_test_pool()
+        .await
+        .unwrap();
 
     let temp_storage_dir = tempfile::tempdir().unwrap();
-    let storage = Arc::new(storage::FilesystemStorage::new(temp_storage_dir.path().to_path_buf())) as Arc<dyn storage::Storage>;
+    let storage = Arc::new(storage::FilesystemStorage::new(
+        temp_storage_dir.path().to_path_buf(),
+    )) as Arc<dyn storage::Storage>;
 
     let deploy_state = Arc::new(api::DeployState {
         pool: pool.clone(),
@@ -148,14 +155,18 @@ async fn test_authenticated_deploy_requires_jwt() {
 
 #[tokio::test]
 async fn test_authenticated_deploy_validates_project_name() {
-    let pool = statichub_server::test_utils::create_test_pool().await.unwrap();
+    let pool = statichub_server::test_utils::create_test_pool()
+        .await
+        .unwrap();
 
     let user = models::User::create(&pool, "google", "test123", "test@example.com", "testuser")
         .await
         .unwrap();
 
     let temp_storage_dir = tempfile::tempdir().unwrap();
-    let storage = Arc::new(storage::FilesystemStorage::new(temp_storage_dir.path().to_path_buf())) as Arc<dyn storage::Storage>;
+    let storage = Arc::new(storage::FilesystemStorage::new(
+        temp_storage_dir.path().to_path_buf(),
+    )) as Arc<dyn storage::Storage>;
 
     let deploy_state = Arc::new(api::DeployState {
         pool: pool.clone(),
@@ -202,7 +213,9 @@ async fn test_authenticated_deploy_validates_project_name() {
 
 #[tokio::test]
 async fn test_authenticated_deploy_enforces_ownership() {
-    let pool = statichub_server::test_utils::create_test_pool().await.unwrap();
+    let pool = statichub_server::test_utils::create_test_pool()
+        .await
+        .unwrap();
 
     // Create two users
     let user1 = models::User::create(&pool, "google", "user1", "user1@example.com", "user1")
@@ -218,7 +231,9 @@ async fn test_authenticated_deploy_enforces_ownership() {
         .unwrap();
 
     let temp_storage_dir = tempfile::tempdir().unwrap();
-    let storage = Arc::new(storage::FilesystemStorage::new(temp_storage_dir.path().to_path_buf())) as Arc<dyn storage::Storage>;
+    let storage = Arc::new(storage::FilesystemStorage::new(
+        temp_storage_dir.path().to_path_buf(),
+    )) as Arc<dyn storage::Storage>;
 
     let deploy_state = Arc::new(api::DeployState {
         pool: pool.clone(),
@@ -265,14 +280,18 @@ async fn test_authenticated_deploy_enforces_ownership() {
 
 #[tokio::test]
 async fn test_authenticated_deploy_increments_version() {
-    let pool = statichub_server::test_utils::create_test_pool().await.unwrap();
+    let pool = statichub_server::test_utils::create_test_pool()
+        .await
+        .unwrap();
 
     let user = models::User::create(&pool, "google", "test123", "test@example.com", "testuser")
         .await
         .unwrap();
 
     let temp_storage_dir = tempfile::tempdir().unwrap();
-    let storage = Arc::new(storage::FilesystemStorage::new(temp_storage_dir.path().to_path_buf())) as Arc<dyn storage::Storage>;
+    let storage = Arc::new(storage::FilesystemStorage::new(
+        temp_storage_dir.path().to_path_buf(),
+    )) as Arc<dyn storage::Storage>;
 
     let deploy_state = Arc::new(api::DeployState {
         pool: pool.clone(),
@@ -299,10 +318,7 @@ async fn test_authenticated_deploy_increments_version() {
     );
 
     // First deploy
-    let app1 = create_test_router_with_middleware(
-        deploy_state.clone(),
-        auth_state.clone(),
-    );
+    let app1 = create_test_router_with_middleware(deploy_state.clone(), auth_state.clone());
     let request1 = Request::builder()
         .method("POST")
         .uri("/api/projects/versioned-app/deploys")
