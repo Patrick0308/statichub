@@ -550,3 +550,102 @@ async fn test_redirect_not_matching_similar_paths(pool: SqlitePool) {
         "/new"
     );
 }
+
+#[sqlx::test]
+async fn test_base_domain_root_serves_homepage(pool: SqlitePool) {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let storage = Arc::new(FilesystemStorage::new(temp_dir.path().to_path_buf()));
+    let state = Arc::new(DeployState {
+        pool: pool.clone(),
+        storage,
+    });
+    let auth_state = create_test_auth_state(pool.clone());
+    let app = create_test_router_with_middleware(state, auth_state);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/")
+                .header("Host", "statichub.io")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response.headers().get("content-type").unwrap(),
+        "text/html; charset=utf-8"
+    );
+}
+
+#[sqlx::test]
+async fn test_base_domain_home_asset_serves_css(pool: SqlitePool) {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let storage = Arc::new(FilesystemStorage::new(temp_dir.path().to_path_buf()));
+    let state = Arc::new(DeployState {
+        pool: pool.clone(),
+        storage,
+    });
+    let auth_state = create_test_auth_state(pool.clone());
+    let app = create_test_router_with_middleware(state, auth_state);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/__home/home.css")
+                .header("Host", "statichub.io")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response.headers().get("content-type").unwrap(),
+        "text/css; charset=utf-8"
+    );
+}
+
+#[sqlx::test]
+async fn test_subdomain_root_still_serves_project_index(pool: SqlitePool) {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let storage = Arc::new(FilesystemStorage::new(temp_dir.path().to_path_buf()));
+    let project = Project::create_anonymous(&pool, None).await.unwrap();
+    let storage_path = format!("{}/deploy-1", project.subdomain);
+    let deploy = Deploy::create(&pool, project.id, &storage_path).await.unwrap();
+
+    sqlx::query("UPDATE projects SET current_deploy_id = ? WHERE id = ?")
+        .bind(deploy.id)
+        .bind(project.id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    storage
+        .store_file(&storage_path, "index.html", b"<h1>Project Home</h1>")
+        .await
+        .unwrap();
+
+    let state = Arc::new(DeployState {
+        pool: pool.clone(),
+        storage: storage.clone(),
+    });
+    let auth_state = create_test_auth_state(pool.clone());
+    let app = create_test_router_with_middleware(state, auth_state);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/")
+                .header("Host", &format!("{}.statichub.io", project.subdomain))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+}
