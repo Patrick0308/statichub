@@ -4,16 +4,12 @@ mod upload;
 mod client;
 
 use anyhow::Context;
-use clap::{ArgAction, CommandFactory, Parser, Subcommand};
+use clap::{CommandFactory, Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(name = "statichub")]
 #[command(about = "Static web publishing for frontend developers", long_about = None)]
 struct Cli {
-    /// Print version
-    #[arg(short = 'V', long = "version", action = ArgAction::SetTrue)]
-    version: bool,
-
     #[command(subcommand)]
     command: Option<Commands>,
 }
@@ -64,11 +60,6 @@ enum Commands {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
-
-    if cli.version {
-        println!("{}", env!("CARGO_PKG_VERSION"));
-        return Ok(());
-    }
 
     let Some(command) = cli.command else {
         Cli::command().print_help()?;
