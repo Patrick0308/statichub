@@ -5,25 +5,71 @@ on:
   push:
     branches:
       - main
-  workflow_dispatch:
 
 jobs:
-  validate-installers:
-    name: Validate installer scripts
+  validate-unix-installer:
+    name: Validate install.sh
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Validate install.sh syntax and help
+      - name: Shell syntax check
+        run: sh -n scripts/install.sh
+
+      - name: Help output (default)
+        run: sh scripts/install.sh --help | grep -q "Install target (default: cli)"
+
+      - name: Help output (short scope argument)
+        run: sh scripts/install.sh server --help | grep -q "Install target (default: cli)"
+
+      - name: Help output (long scope option)
+        run: sh scripts/install.sh --scope both --help | grep -q "Install target (default: cli)"
+
+      - name: Reject invalid scope
         run: |
-          sh -n scripts/install.sh
-          sh scripts/install.sh --help | grep -q "Install target (default: cli)"
+          if sh scripts/install.sh nope --help >/dev/null 2>&1; then
+            echo "Expected invalid scope to fail"
+            exit 1
+          fi
+
+      - name: Verify scope argument parsing
+        run: |
+          sh scripts/install.sh --scope cli --help >/dev/null
+          sh scripts/install.sh --scope server --help >/dev/null
+          sh scripts/install.sh --scope both --help >/dev/null
+
+      - name: Verify version and bin-dir options in help
+        run: |
+          sh scripts/install.sh --help | grep -q -- "--version <tag>"
+          sh scripts/install.sh --help | grep -q -- "--bin-dir <path>"
+
+      - name: Verify printed post-install command style
+        run: |
           grep -q "statichub version" scripts/install.sh
           grep -q "statichub-server version" scripts/install.sh
 
-      - name: Validate install.ps1 content
+  validate-windows-installer:
+    name: Validate install.ps1
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: PowerShell syntax check
+        shell: pwsh
         run: |
-          grep -q "Install statichub only" scripts/install.ps1
-          grep -q "statichub version" scripts/install.ps1
-          grep -q "statichub-server version" scripts/install.ps1
+          [void][System.Management.Automation.PSParser]::Tokenize((Get-Content scripts/install.ps1 -Raw), [ref]$null)
+
+      - name: Help output contains scope docs
+        shell: pwsh
+        run: |
+          $help = pwsh -NoProfile -File scripts/install.ps1 --help 2>&1 | Out-String
+          if ($help -notmatch "Install statichub only") { throw "Expected help text missing" }
+
+      - name: Verify printed post-install command style
+        shell: pwsh
+        run: |
+          $content = Get-Content scripts/install.ps1 -Raw
+          if ($content -notmatch "statichub version") { throw "Missing statichub version guidance" }
+          if ($content -notmatch "statichub-server version") { throw "Missing statichub-server version guidance" }
