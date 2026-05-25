@@ -128,6 +128,12 @@ Important env vars:
 - `STATICHUB_GOOGLE_CLIENT_SECRET`
 - `STATICHUB_GOOGLE_REDIRECT_URL`
 
+## Routing Behavior
+
+- Base domain (for example `statichub.io`) serves the built-in product homepage.
+- Subdomains serve deployed static files for projects (for example `my-app.statichub.io`).
+- Built-in homepage assets are reserved under `/__home/*`.
+
 ## Development
 
 Run tests:
