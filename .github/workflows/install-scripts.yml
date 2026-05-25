@@ -67,7 +67,7 @@ jobs:
       - name: Help output contains scope docs
         shell: pwsh
         run: |
-          $help = pwsh -NoProfile -File scripts/install.ps1 --help 2>&1 | Out-String
+          $help = (& ./scripts/install.ps1 --help 2>&1 | Out-String)
           if ($help -notmatch "Install statichub only") { throw "Expected help text missing" }
 
       - name: Verify printed post-install command style
