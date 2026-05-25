@@ -1,5 +1,6 @@
 use crate::{
     api::DeployState,
+    config::parse_host,
     error::{AppError, Result},
     middleware::RequestHost,
     models::Project,
@@ -19,6 +20,9 @@ pub async fn serve_static_file(
     axum::http::request::Parts { extensions, .. }: axum::http::request::Parts,
     request: Request,
 ) -> Result<Response> {
+    let (hostname, _) =
+        parse_host(&hostname).map_err(|e| AppError::BadRequest(format!("Invalid hostname: {}", e)))?;
+
     let request_host = extensions
         .get::<RequestHost>()
         .ok_or(AppError::MissingHost)?;

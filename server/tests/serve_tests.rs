@@ -636,6 +636,35 @@ async fn test_base_domain_root_serves_homepage(pool: SqlitePool) {
 }
 
 #[sqlx::test]
+async fn test_base_domain_root_with_port_serves_homepage(pool: SqlitePool) {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let storage = Arc::new(FilesystemStorage::new(temp_dir.path().to_path_buf()));
+    let state = Arc::new(DeployState {
+        pool: pool.clone(),
+        storage,
+    });
+    let auth_state = create_test_auth_state(pool.clone());
+    let app = create_test_router_with_middleware(state, auth_state);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/")
+                .header("Host", "statichub.io:3000")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response.headers().get("content-type").unwrap(),
+        "text/html; charset=utf-8"
+    );
+}
+
+#[sqlx::test]
 async fn test_base_domain_home_asset_serves_css(pool: SqlitePool) {
     let temp_dir = tempfile::tempdir().unwrap();
     let storage = Arc::new(FilesystemStorage::new(temp_dir.path().to_path_buf()));

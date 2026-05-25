@@ -3,40 +3,80 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Statichub | AI-first static deploys from your terminal</title>
+    <title>Statichub | AI-generated content, auto-published</title>
     <link rel="stylesheet" href="/__home/home.css" />
   </head>
   <body>
     <header class="site-header">
       <div class="wrap header-inner">
-        <a class="brand" href="/">Statichub</a>
+        <a class="brand" href="/">statichub</a>
         <nav class="top-nav" aria-label="Primary">
-          <a href="#capabilities">CLI</a>
-          <a href="#quickstart">Skill</a>
-          <a href="https://statichub.io/docs" target="_blank" rel="noopener noreferrer">Docs</a>
-          <a href="https://github.com/statichubhq/statichub" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a href="#how">Product</a>
+          <a href="#install">Developers</a>
+          <a href="#capabilities">Solutions</a>
+          <a href="https://github.com/Patrick0308/statichub#readme" target="_blank" rel="noopener noreferrer">Docs</a>
         </nav>
-        <a class="header-cta" href="#install">Install CLI</a>
+        <div class="header-actions">
+          <a class="btn btn-ghost" href="https://github.com/Patrick0308/statichub" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a class="btn btn-primary" href="#install" data-analytics="install-primary">Auto-publish now</a>
+        </div>
       </div>
     </header>
 
-    <main class="wrap main">
-      <section class="intro-strip">
-        <p class="intro-line">From AI prompt to production URL.</p>
-        <p class="intro-trust">Built for AI coding workflows.</p>
-        <p class="intro-subline">Use Statichub Skill in your AI workflow, or Statichub CLI in your terminal.</p>
-        <div class="intro-actions">
-          <a class="intro-cta intro-cta-primary" href="#install" data-analytics="install-primary">Install CLI</a>
-          <a class="intro-cta intro-cta-secondary" href="#quickstart" data-analytics="use-skill">Use Skill</a>
+    <main>
+      <section class="hero wrap" id="hero">
+        <p class="hero-pill">For AI coding workflows</p>
+        <h1>
+          AI-generated content<br />
+          <span>auto-published.</span>
+        </h1>
+        <p class="hero-sub">Statichub Skill and CLI turn generated output into a live URL automatically.</p>
+        <div class="hero-actions">
+          <a class="btn btn-primary" href="#install" data-analytics="install-primary">Auto-publish now</a>
+          <a class="btn btn-outline" href="#quickstart" data-analytics="use-skill">Quickstart</a>
         </div>
       </section>
 
-      <section class="panel" id="quickstart">
-        <div class="section-head">
-          <h2>Quickstart</h2>
-          <p>AI positioning: choose Skill-first or CLI-first, then ship.</p>
+      <section class="logo-row wrap" aria-label="Trust line">
+        <p>Trusted in fast iteration workflows</p>
+        <div class="logo-list">
+          <span>terminal-first</span>
+          <span>agent-compatible</span>
+          <span>deployment history</span>
+          <span>rollback-ready</span>
         </div>
+      </section>
 
+      <section class="feature-grid wrap" id="capabilities">
+        <article class="feature-card">
+          <h3>Directory deploy</h3>
+          <p>Publish a build output directory immediately.</p>
+          <code>statichub deploy ./dist</code>
+        </article>
+        <article class="feature-card">
+          <h3>Single HTML deploy</h3>
+          <p>Ship one HTML file directly.</p>
+          <code>statichub deploy ~/Downloads/page.html</code>
+        </article>
+        <article class="feature-card">
+          <h3>Named project</h3>
+          <p>Keep a stable project with auth flow.</p>
+          <code>statichub deploy ./dist --name my-app</code>
+        </article>
+      </section>
+
+      <section class="section wrap" id="how">
+        <div class="section-head compact">
+          <h2>How it works</h2>
+        </div>
+        <ol class="flow">
+          <li data-quickstart-step="1"><strong>Generate</strong><span>AI creates output.</span></li>
+          <li data-quickstart-step="2"><strong>Deploy</strong><span>Skill or CLI publishes.</span></li>
+          <li data-quickstart-step="3"><strong>Share</strong><span>Live URL is ready.</span></li>
+        </ol>
+      </section>
+
+      <section class="section wrap" id="quickstart">
         <div class="tabs" data-tabs="quickstart">
           <div class="tab-list" role="tablist" aria-label="Quickstart path">
             <button class="tab-btn is-active" data-tab-target="skill" role="tab" aria-selected="true">Skill-first</button>
@@ -44,153 +84,46 @@
           </div>
 
           <article class="tab-panel is-active" data-tab-panel="skill" role="tabpanel">
-            <ol>
-              <li data-quickstart-step="1">Install Statichub CLI.</li>
-              <li data-quickstart-step="2">Open your AI pair programmer and ask it to deploy this folder.</li>
-              <li data-quickstart-step="3">Approve the command and get your live subdomain.</li>
-            </ol>
-            <div class="code-block">
-              <code id="quickstart-skill-cmd">statichub deploy --ai .</code>
+            <div class="code-block single">
+              <code id="quickstart-skill-cmd">npx skills add Patrick0308/statichub --skill statichub</code>
               <button class="copy-btn" data-copy-target="quickstart-skill-cmd">Copy</button>
             </div>
           </article>
 
           <article class="tab-panel" data-tab-panel="cli" role="tabpanel">
-            <ol>
-              <li data-quickstart-step="1">Install the CLI and sign in.</li>
-              <li data-quickstart-step="2">Deploy any folder from your terminal.</li>
-              <li data-quickstart-step="3">Redeploy updates in seconds.</li>
-            </ol>
-            <div class="code-block">
-              <code id="quickstart-cli-cmd">statichub deploy .</code>
+            <div class="code-block single">
+              <code id="quickstart-cli-cmd">statichub deploy ./dist</code>
               <button class="copy-btn" data-copy-target="quickstart-cli-cmd">Copy</button>
             </div>
           </article>
         </div>
       </section>
 
-      <section class="panel" id="install">
-        <div class="section-head">
+      <section class="section wrap" id="install">
+        <div class="section-head compact">
           <h2>Install</h2>
-          <p>Pick your OS command.</p>
+          <p>README-aligned commands.</p>
         </div>
 
         <div class="tabs" data-tabs="install">
           <div class="tab-list" role="tablist" aria-label="Operating system">
-            <button class="tab-btn is-active" data-tab-target="macos" role="tab" aria-selected="true">macOS</button>
-            <button class="tab-btn" data-tab-target="linux" role="tab" aria-selected="false">Linux</button>
+            <button class="tab-btn is-active" data-tab-target="macos" role="tab" aria-selected="true">macOS/Linux</button>
             <button class="tab-btn" data-tab-target="windows" role="tab" aria-selected="false">Windows</button>
           </div>
 
           <article class="tab-panel is-active" data-tab-panel="macos" role="tabpanel">
-            <p class="install-label">Recommended command</p>
-            <div class="code-block">
-              <code id="install-macos-cmd">brew install statichub/tap/statichub</code>
+            <div class="code-block single">
+              <code id="install-macos-cmd">curl -sSL https://raw.githubusercontent.com/Patrick0308/statichub/main/scripts/install.sh | sh</code>
               <button class="copy-btn" data-copy-target="install-macos-cmd" data-os="macos">Copy</button>
             </div>
-            <p class="install-fallback">Fallback: download tarball and place `statichub` in your PATH.</p>
-            <p class="install-links">
-              <a href="https://github.com/statichubhq/statichub/releases/latest" target="_blank" rel="noopener noreferrer">Latest version</a>
-              <a href="https://github.com/statichubhq/statichub/releases" target="_blank" rel="noopener noreferrer">Release notes</a>
-            </p>
-          </article>
-
-          <article class="tab-panel" data-tab-panel="linux" role="tabpanel">
-            <p class="install-label">Recommended command</p>
-            <div class="code-block">
-              <code id="install-linux-cmd">curl -fsSL https://statichub.io/install.sh | sh</code>
-              <button class="copy-btn" data-copy-target="install-linux-cmd" data-os="linux">Copy</button>
-            </div>
-            <p class="install-fallback">Fallback: fetch a release archive and install manually.</p>
-            <p class="install-links">
-              <a href="https://github.com/statichubhq/statichub/releases/latest" target="_blank" rel="noopener noreferrer">Latest version</a>
-              <a href="https://github.com/statichubhq/statichub/releases" target="_blank" rel="noopener noreferrer">Release notes</a>
-            </p>
           </article>
 
           <article class="tab-panel" data-tab-panel="windows" role="tabpanel">
-            <p class="install-label">Recommended command</p>
-            <div class="code-block">
-              <code id="install-windows-cmd">winget install statichub.cli</code>
+            <div class="code-block single">
+              <code id="install-windows-cmd">iwr https://raw.githubusercontent.com/Patrick0308/statichub/main/scripts/install.ps1 -UseBasicParsing | iex</code>
               <button class="copy-btn" data-copy-target="install-windows-cmd" data-os="windows">Copy</button>
             </div>
-            <p class="install-fallback">Fallback: use the signed installer from GitHub Releases.</p>
-            <p class="install-links">
-              <a href="https://github.com/statichubhq/statichub/releases/latest" target="_blank" rel="noopener noreferrer">Latest version</a>
-              <a href="https://github.com/statichubhq/statichub/releases" target="_blank" rel="noopener noreferrer">Release notes</a>
-            </p>
           </article>
-        </div>
-      </section>
-
-      <section class="values" aria-label="Core values">
-        <article class="value-card">
-          <h3>Speed</h3>
-          <p>Move from prompt or terminal command to live URL in seconds.</p>
-        </article>
-        <article class="value-card">
-          <h3>Repeatability</h3>
-          <p>Use consistent deploy commands across projects and environments.</p>
-        </article>
-        <article class="value-card">
-          <h3>Shareability</h3>
-          <p>Share stable subdomains instantly with teammates and stakeholders.</p>
-        </article>
-      </section>
-
-      <section class="capabilities-grid" id="capabilities">
-        <div class="section-head">
-          <h2>CLI capabilities</h2>
-        </div>
-        <article class="cap-card">
-          <h3>Deploy current folder</h3>
-          <p>Publish a build output directory to a stable subdomain.</p>
-          <code>statichub deploy .</code>
-        </article>
-        <article class="cap-card">
-          <h3>AI-assisted deploy</h3>
-          <p>Use a Skill-first flow with your coding assistant.</p>
-          <code>statichub deploy --ai .</code>
-        </article>
-        <article class="cap-card">
-          <h3>Authentication check</h3>
-          <p>Verify login state before deploying from CI or local shells.</p>
-          <code>statichub auth status</code>
-        </article>
-        <article class="cap-card">
-          <h3>Version visibility</h3>
-          <p>Confirm installed CLI version before upgrades.</p>
-          <code>statichub --version</code>
-        </article>
-      </section>
-
-      <section class="panel faq" id="faq">
-        <div class="section-head">
-          <h2>FAQ</h2>
-        </div>
-        <details>
-          <summary>Should I use Skill or CLI mode?</summary>
-          <p>Use Skill for AI pair workflows and CLI for direct terminal-first control.</p>
-        </details>
-        <details>
-          <summary>What if install commands fail?</summary>
-          <p>Use each OS panel fallback method, then verify with <code>statichub --version</code>.</p>
-        </details>
-        <details>
-          <summary>How do upgrades work?</summary>
-          <p>Re-run your install method or pull the latest release from the release notes page.</p>
-        </details>
-        <details>
-          <summary>How do I fix auth issues?</summary>
-          <p>Run <code>statichub auth status</code> and sign in again if your session expired.</p>
-        </details>
-      </section>
-
-      <section class="final-cta">
-        <h2>Install now</h2>
-        <div class="code-block">
-          <code id="final-cta-cmd">statichub deploy .</code>
-          <button class="copy-btn" data-copy-target="final-cta-cmd">Copy</button>
         </div>
       </section>
     </main>
