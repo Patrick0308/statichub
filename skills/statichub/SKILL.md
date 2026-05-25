@@ -1,9 +1,9 @@
 ---
-name: statichub-ai-deploy
+name: statichub
 description: Deploy AI-generated static assets with StaticHub CLI. Use when a user wants to publish files with `statichub deploy <path>`, where `<path>` must be an explicit non-empty directory or a non-empty `.html` file.
 ---
 
-# StaticHub AI Deploy
+# StaticHub
 
 ## Rules
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "StaticHub"
+  short_description: "Deploy static assets with strict path validation."
+  default_prompt: "Use this skill to deploy static assets with statichub deploy <path> and strict validation."

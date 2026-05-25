@@ -1,4 +1,0 @@
-interface:
-  display_name: "StaticHub AI Deploy"
-  short_description: "Deploy AI-generated static assets with strict path validation."
-  default_prompt: "Use this skill to deploy AI-generated static assets with statichub deploy <path> and strict validation."
