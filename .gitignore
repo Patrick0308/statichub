@@ -22,6 +22,7 @@ Thumbs.db
 *.db-wal
 .statichub/
 server/.env
+.env
 server/storage/
 
 # Test artifacts

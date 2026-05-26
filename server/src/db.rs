@@ -120,7 +120,7 @@ mod tests {
             .await
             .unwrap();
 
-        assert!(result.len() >= 5); // At least 5 tables
+        assert!(result.len() >= 6); // At least 6 tables
 
         // Verify specific tables exist
         let table_names: Vec<String> = result
@@ -134,6 +134,7 @@ mod tests {
             "deploys",
             "deploy_tokens",
             "oauth_sessions",
+            "api_keys",
         ];
         for table in expected_tables {
             assert!(

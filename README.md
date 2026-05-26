@@ -49,7 +49,15 @@ statichub logout
 statichub list
 statichub info <project>
 statichub rollback <project> <version>
+statichub apikey create <name>
+statichub apikey list
+statichub apikey revoke <id>
 ```
+
+`STATICHUB_API_KEY`:
+
+- If set, `deploy --name`, `list`, `info`, and `rollback` use it as auth and do not require `statichub login`.
+- `apikey` management commands still require `statichub login`.
 
 ## `statichub` Skill (for AI Agents)
 

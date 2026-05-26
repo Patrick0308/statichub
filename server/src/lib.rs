@@ -40,6 +40,8 @@ pub fn create_router(
             "/api/projects/:name/deploys",
             post(api::create_project_deploy),
         )
+        .route("/api/apikeys", post(api::create_api_key).get(api::list_api_keys))
+        .route("/api/apikeys/:id/revoke", post(api::revoke_api_key))
         .route("/api/projects", get(api::list_projects))
         .route("/api/projects/:name", get(api::get_project_info))
         .route("/api/projects/:name/rollback", post(api::rollback_project))

@@ -30,6 +30,24 @@ pub struct DeployInfo {
     pub is_current: bool,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct ApiKeyItem {
+    pub id: i64,
+    pub name: String,
+    pub prefix: String,
+    pub created_at: String,
+    pub last_used_at: Option<String>,
+    pub revoked: bool,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateApiKeyResponse {
+    pub id: i64,
+    pub name: String,
+    pub prefix: String,
+    pub api_key: String,
+}
+
 pub struct Client {
     base_url: String,
     client: reqwest::Client,
@@ -250,6 +268,70 @@ impl Client {
             .json()
             .await
             .context("Failed to parse rollback response")
+    }
+
+    pub async fn create_api_key(&self, jwt: &str, name: &str) -> Result<CreateApiKeyResponse> {
+        let url = format!("{}/api/apikeys", self.base_url);
+        let response = self
+            .client
+            .post(&url)
+            .header("Authorization", format!("Bearer {}", jwt))
+            .json(&serde_json::json!({ "name": name }))
+            .send()
+            .await
+            .context("Failed to create api key")?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            anyhow::bail!("Failed to create api key: {} - {}", status, body);
+        }
+
+        response
+            .json()
+            .await
+            .context("Failed to parse api key create response")
+    }
+
+    pub async fn list_api_keys(&self, jwt: &str) -> Result<Vec<ApiKeyItem>> {
+        let url = format!("{}/api/apikeys", self.base_url);
+        let response = self
+            .client
+            .get(&url)
+            .header("Authorization", format!("Bearer {}", jwt))
+            .send()
+            .await
+            .context("Failed to list api keys")?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            anyhow::bail!("Failed to list api keys: {} - {}", status, body);
+        }
+
+        response
+            .json()
+            .await
+            .context("Failed to parse api keys list")
+    }
+
+    pub async fn revoke_api_key(&self, jwt: &str, id: i64) -> Result<()> {
+        let url = format!("{}/api/apikeys/{}/revoke", self.base_url, id);
+        let response = self
+            .client
+            .post(&url)
+            .header("Authorization", format!("Bearer {}", jwt))
+            .send()
+            .await
+            .context("Failed to revoke api key")?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            anyhow::bail!("Failed to revoke api key: {} - {}", status, body);
+        }
+
+        Ok(())
     }
 }
 

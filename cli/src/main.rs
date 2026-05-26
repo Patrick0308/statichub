@@ -55,6 +55,28 @@ enum Commands {
         /// Version to rollback to
         version: i64,
     },
+
+    /// Manage API keys (requires login)
+    Apikey {
+        #[command(subcommand)]
+        command: ApiKeyCommands,
+    },
+}
+
+#[derive(Subcommand)]
+enum ApiKeyCommands {
+    /// Create a new API key
+    Create {
+        /// Human-readable name for this key
+        name: String,
+    },
+    /// List your API keys
+    List,
+    /// Revoke an API key by id
+    Revoke {
+        /// API key id
+        id: i64,
+    },
 }
 
 #[tokio::main]
@@ -101,13 +123,10 @@ async fn main() -> anyhow::Result<()> {
 
             let response = if let Some(project_name) = name {
                 // Authenticated deploy
-                let credentials = auth::load_credentials()?
-                    .ok_or_else(|| anyhow::anyhow!(
-                        "Not logged in. Run 'statichub login' first to deploy named projects."
-                    ))?;
+                let token = resolve_project_auth_token()?;
 
                 println!("🚀 Deploying to project '{}' on {}...", project_name, server_url);
-                client.deploy_authenticated(&project_name, &files, &credentials.access_token, config.as_ref()).await?
+                client.deploy_authenticated(&project_name, &files, &token, config.as_ref()).await?
             } else {
                 // Anonymous deploy
                 println!("🚀 Deploying to {}...", server_url);
@@ -188,14 +207,13 @@ async fn main() -> anyhow::Result<()> {
             }
         }
         Commands::List => {
-            let credentials = auth::load_credentials()?
-                .ok_or_else(|| anyhow::anyhow!("Not logged in. Run 'statichub login' first."))?;
+            let token = resolve_project_auth_token()?;
 
             let server_url = std::env::var("STATICHUB_SERVER")
                 .unwrap_or_else(|_| "https://statichub.dev".to_string());
 
             let client = client::Client::new(server_url);
-            let projects = client.list_projects(&credentials.access_token).await?;
+            let projects = client.list_projects(&token).await?;
 
             if projects.is_empty() {
                 println!("📭 No projects yet");
@@ -215,14 +233,13 @@ async fn main() -> anyhow::Result<()> {
             }
         }
         Commands::Info { project } => {
-            let credentials = auth::load_credentials()?
-                .ok_or_else(|| anyhow::anyhow!("Not logged in. Run 'statichub login' first."))?;
+            let token = resolve_project_auth_token()?;
 
             let server_url = std::env::var("STATICHUB_SERVER")
                 .unwrap_or_else(|_| "https://statichub.dev".to_string());
 
             let client = client::Client::new(server_url);
-            let info = client.get_project_info(&project, &credentials.access_token).await?;
+            let info = client.get_project_info(&project, &token).await?;
 
             println!("📦 Project: {}", info.name);
             println!("   URL: {}", info.url);
@@ -245,8 +262,7 @@ async fn main() -> anyhow::Result<()> {
             }
         }
         Commands::Rollback { project, version } => {
-            let credentials = auth::load_credentials()?
-                .ok_or_else(|| anyhow::anyhow!("Not logged in. Run 'statichub login' first."))?;
+            let token = resolve_project_auth_token()?;
 
             let server_url = std::env::var("STATICHUB_SERVER")
                 .unwrap_or_else(|_| "https://statichub.dev".to_string());
@@ -255,14 +271,75 @@ async fn main() -> anyhow::Result<()> {
 
             let client = client::Client::new(server_url);
             let info = client
-                .rollback_project(&project, version, &credentials.access_token)
+                .rollback_project(&project, version, &token)
                 .await?;
 
             println!("✅ Rollback successful!");
             println!("   {} is now at version {}", info.name, info.current_version.unwrap_or(0));
             println!("   URL: {}", info.url);
         }
+        Commands::Apikey { command } => {
+            let jwt = require_login_jwt()?;
+            let server_url = std::env::var("STATICHUB_SERVER")
+                .unwrap_or_else(|_| "https://statichub.dev".to_string());
+            let client = client::Client::new(server_url);
+
+            match command {
+                ApiKeyCommands::Create { name } => {
+                    let created = client.create_api_key(&jwt, &name).await?;
+                    println!("✅ API key created!");
+                    println!("   ID: {}", created.id);
+                    println!("   Name: {}", created.name);
+                    println!("   Prefix: {}", created.prefix);
+                    println!("   Key (shown once): {}", created.api_key);
+                    println!("   Export it: export STATICHUB_API_KEY='{}'", created.api_key);
+                }
+                ApiKeyCommands::List => {
+                    let keys = client.list_api_keys(&jwt).await?;
+                    if keys.is_empty() {
+                        println!("📭 No API keys");
+                    } else {
+                        println!("🔑 API keys:\n");
+                        for key in keys {
+                            let status = if key.revoked { "revoked" } else { "active" };
+                            println!("  {} - {} ({})", key.id, key.name, status);
+                            println!("    Prefix: {}", key.prefix);
+                            println!("    Created: {}", key.created_at);
+                            if let Some(last_used_at) = key.last_used_at {
+                                println!("    Last used: {}", last_used_at);
+                            }
+                            println!();
+                        }
+                    }
+                }
+                ApiKeyCommands::Revoke { id } => {
+                    client.revoke_api_key(&jwt, id).await?;
+                    println!("✅ API key revoked: {}", id);
+                }
+            }
+        }
     }
 
     Ok(())
+}
+
+fn resolve_project_auth_token() -> anyhow::Result<String> {
+    if let Ok(key) = std::env::var("STATICHUB_API_KEY") {
+        let trimmed = key.trim();
+        if !trimmed.is_empty() {
+            return Ok(trimmed.to_string());
+        }
+    }
+
+    let credentials = auth::load_credentials()?
+        .ok_or_else(|| anyhow::anyhow!(
+            "Not authenticated. Run 'statichub login' or set STATICHUB_API_KEY."
+        ))?;
+    Ok(credentials.access_token)
+}
+
+fn require_login_jwt() -> anyhow::Result<String> {
+    let credentials = auth::load_credentials()?
+        .ok_or_else(|| anyhow::anyhow!("Not logged in. Run 'statichub login' first."))?;
+    Ok(credentials.access_token)
 }
