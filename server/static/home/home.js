@@ -112,19 +112,26 @@ function setupCopyButtons() {
 }
 
 function setupAnalyticsCtas() {
-  const installPrimary = document.querySelector('[data-analytics="install-primary"]');
-  if (installPrimary) {
-    installPrimary.addEventListener('click', () => {
+  const installPrimary = document.querySelectorAll('[data-analytics="install-primary"]');
+  installPrimary.forEach((cta) => {
+    cta.addEventListener('click', () => {
       emitAnalytics('click_install_primary');
     });
-  }
+  });
 
-  const useSkill = document.querySelector('[data-analytics="use-skill"]');
-  if (useSkill) {
-    useSkill.addEventListener('click', () => {
+  const useSkill = document.querySelectorAll('[data-analytics="use-skill"]');
+  useSkill.forEach((cta) => {
+    cta.addEventListener('click', () => {
       emitAnalytics('click_use_skill');
     });
-  }
+  });
+
+  const runFirstDeploy = document.querySelectorAll('[data-analytics="run-first-deploy"]');
+  runFirstDeploy.forEach((cta) => {
+    cta.addEventListener('click', () => {
+      emitAnalytics('click_run_first_deploy');
+    });
+  });
 }
 
 function setupQuickstartStepTracking() {

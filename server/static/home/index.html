@@ -18,22 +18,30 @@
         </nav>
         <div class="header-actions">
           <a class="btn btn-ghost" href="https://github.com/Patrick0308/statichub" target="_blank" rel="noopener noreferrer">GitHub</a>
-          <a class="btn btn-primary" href="#install" data-analytics="install-primary">Auto-publish now</a>
+          <a class="btn btn-primary" href="#quickstart" data-analytics="install-primary">Use statichub skill</a>
         </div>
       </div>
     </header>
 
     <main>
       <section class="hero wrap" id="hero">
-        <p class="hero-pill">For AI coding workflows</p>
+        <p class="hero-pill">For AI publishing workflows</p>
         <h1>
-          AI-generated content<br />
-          <span>auto-published.</span>
+          From prompt to<br />
+          <span>production URL.</span>
         </h1>
-        <p class="hero-sub">Statichub Skill and CLI turn generated output into a live URL automatically.</p>
+        <p class="hero-sub">Use statichub skill for auto-publish workflows, with CLI install and deploy always available.</p>
         <div class="hero-actions">
-          <a class="btn btn-primary" href="#install" data-analytics="install-primary">Auto-publish now</a>
-          <a class="btn btn-outline" href="#quickstart" data-analytics="use-skill">Quickstart</a>
+          <a class="btn btn-primary" href="#quickstart" data-analytics="use-skill">Use statichub skill</a>
+          <a class="btn btn-outline" href="#install" data-analytics="install-primary">Install CLI</a>
+        </div>
+        <p class="hero-tertiary">
+          <a href="#deploy-example" data-analytics="run-first-deploy">Run first deploy</a>
+        </p>
+        <div class="hero-flow" aria-hidden="true">
+          <span>Generate</span>
+          <span>Deploy</span>
+          <span>Live URL</span>
         </div>
       </section>
 
@@ -54,9 +62,9 @@
           <code>statichub deploy ./dist</code>
         </article>
         <article class="feature-card">
-          <h3>Single HTML deploy</h3>
-          <p>Ship one HTML file directly.</p>
-          <code>statichub deploy ~/Downloads/page.html</code>
+          <h3>Project rollback</h3>
+          <p>Rollback a named project to a previous version.</p>
+          <code>statichub rollback my-app 3</code>
         </article>
         <article class="feature-card">
           <h3>Named project</h3>
@@ -97,6 +105,23 @@
             </div>
           </article>
         </div>
+      </section>
+
+      <section class="section wrap" id="deploy-example">
+        <div class="section-head compact">
+          <h2>Deploy example</h2>
+          <p>From README quick start.</p>
+        </div>
+        <div class="code-block single">
+          <code id="deploy-example-cmd">statichub deploy ~/Downloads/page.html</code>
+          <button class="copy-btn" data-copy-target="deploy-example-cmd">Copy</button>
+        </div>
+        <pre class="output-block"><code>📦 Collecting files from ~/Downloads/page.html...
+   Found 1 files
+🚀 Deploying to https://statichub.dev...
+✅ Deploy successful!
+   URL: http://b7kr7b.statichub.dev
+   Subdomain: b7kr7b</code></pre>
       </section>
 
       <section class="section wrap" id="install">
