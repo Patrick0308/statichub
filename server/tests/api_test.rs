@@ -49,7 +49,7 @@ async fn test_deploy_with_different_hosts() {
     let config = ServerConfig::from_env().unwrap();
 
     // Create router with host validation middleware
-    let app = create_router(deploy_state.clone(), auth_state.clone()).layer(
+    let app = create_router(deploy_state.clone(), statichub_server::config::AuthMode::Enabled, Some(auth_state.clone())).layer(
         axum::middleware::from_fn_with_state(
             config.clone(),
             statichub_server::middleware::host_validation_middleware,
@@ -93,7 +93,7 @@ async fn test_deploy_with_different_hosts() {
     );
 
     // Test 2: Deploy via statichub.dev
-    let app = create_router(deploy_state.clone(), auth_state.clone()).layer(
+    let app = create_router(deploy_state.clone(), statichub_server::config::AuthMode::Enabled, Some(auth_state.clone())).layer(
         axum::middleware::from_fn_with_state(
             config.clone(),
             statichub_server::middleware::host_validation_middleware,
@@ -169,7 +169,7 @@ async fn test_reject_unallowed_domain() {
 
     let config = ServerConfig::from_env().unwrap();
 
-    let app = create_router(deploy_state, auth_state).layer(axum::middleware::from_fn_with_state(
+    let app = create_router(deploy_state, statichub_server::config::AuthMode::Enabled, Some(auth_state)).layer(axum::middleware::from_fn_with_state(
         config,
         statichub_server::middleware::host_validation_middleware,
     ));
@@ -234,7 +234,7 @@ async fn test_missing_host_header() {
 
     let config = ServerConfig::from_env().unwrap();
 
-    let app = create_router(deploy_state, auth_state).layer(axum::middleware::from_fn_with_state(
+    let app = create_router(deploy_state, statichub_server::config::AuthMode::Enabled, Some(auth_state)).layer(axum::middleware::from_fn_with_state(
         config,
         statichub_server::middleware::host_validation_middleware,
     ));
