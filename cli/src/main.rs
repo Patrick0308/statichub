@@ -10,6 +10,10 @@ use clap::{CommandFactory, Parser, Subcommand};
 #[command(name = "statichub")]
 #[command(about = "Static web publishing for frontend developers", long_about = None)]
 struct Cli {
+    /// Use local server URL (default: http://localhost:3000, optional custom port)
+    #[arg(long, num_args = 0..=1, default_missing_value = "3000", global = true)]
+    local: Option<u16>,
+
     #[command(subcommand)]
     command: Option<Commands>,
 }
@@ -116,8 +120,7 @@ async fn main() -> anyhow::Result<()> {
                 None
             };
 
-            let server_url = std::env::var("STATICHUB_SERVER")
-                .unwrap_or_else(|_| "https://statichub.dev".to_string());
+            let server_url = resolve_server_url(cli.local);
 
             let client = client::Client::new(server_url.clone());
 
@@ -141,8 +144,7 @@ async fn main() -> anyhow::Result<()> {
             }
         }
         Commands::Login => {
-            let server_url = std::env::var("STATICHUB_SERVER")
-                .unwrap_or_else(|_| "https://statichub.dev".to_string());
+            let server_url = resolve_server_url(cli.local);
 
             println!("🔐 Logging in to StaticHub...");
 
@@ -209,8 +211,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::List => {
             let token = resolve_project_auth_token()?;
 
-            let server_url = std::env::var("STATICHUB_SERVER")
-                .unwrap_or_else(|_| "https://statichub.dev".to_string());
+            let server_url = resolve_server_url(cli.local);
 
             let client = client::Client::new(server_url);
             let projects = client.list_projects(&token).await?;
@@ -235,8 +236,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::Info { project } => {
             let token = resolve_project_auth_token()?;
 
-            let server_url = std::env::var("STATICHUB_SERVER")
-                .unwrap_or_else(|_| "https://statichub.dev".to_string());
+            let server_url = resolve_server_url(cli.local);
 
             let client = client::Client::new(server_url);
             let info = client.get_project_info(&project, &token).await?;
@@ -264,8 +264,7 @@ async fn main() -> anyhow::Result<()> {
         Commands::Rollback { project, version } => {
             let token = resolve_project_auth_token()?;
 
-            let server_url = std::env::var("STATICHUB_SERVER")
-                .unwrap_or_else(|_| "https://statichub.dev".to_string());
+            let server_url = resolve_server_url(cli.local);
 
             println!("🔄 Rolling back {} to version {}...", project, version);
 
@@ -280,8 +279,7 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Apikey { command } => {
             let jwt = require_login_jwt()?;
-            let server_url = std::env::var("STATICHUB_SERVER")
-                .unwrap_or_else(|_| "https://statichub.dev".to_string());
+            let server_url = resolve_server_url(cli.local);
             let client = client::Client::new(server_url);
 
             match command {
@@ -323,6 +321,21 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
+fn resolve_server_url(local_port: Option<u16>) -> String {
+    let env_server = std::env::var("STATICHUB_SERVER").ok();
+    resolve_server_url_from(local_port, env_server.as_deref())
+}
+
+fn resolve_server_url_from(local_port: Option<u16>, env_server: Option<&str>) -> String {
+    if let Some(port) = local_port {
+        return format!("http://localhost:{}", port);
+    }
+
+    env_server
+        .map(str::to_string)
+        .unwrap_or_else(|| "https://statichub.dev".to_string())
+}
+
 fn resolve_project_auth_token() -> anyhow::Result<String> {
     if let Ok(key) = std::env::var("STATICHUB_API_KEY") {
         let trimmed = key.trim();
@@ -342,4 +355,27 @@ fn require_login_jwt() -> anyhow::Result<String> {
     let credentials = auth::load_credentials()?
         .ok_or_else(|| anyhow::anyhow!("Not logged in. Run 'statichub login' first."))?;
     Ok(credentials.access_token)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::resolve_server_url_from;
+
+    #[test]
+    fn resolve_server_url_prefers_local_flag() {
+        let url = resolve_server_url_from(Some(3000), Some("https://example.com"));
+        assert_eq!(url, "http://localhost:3000");
+    }
+
+    #[test]
+    fn resolve_server_url_uses_env_when_no_local_flag() {
+        let url = resolve_server_url_from(None, Some("https://example.com"));
+        assert_eq!(url, "https://example.com");
+    }
+
+    #[test]
+    fn resolve_server_url_uses_default_when_no_local_or_env() {
+        let url = resolve_server_url_from(None, None);
+        assert_eq!(url, "https://statichub.dev");
+    }
 }
