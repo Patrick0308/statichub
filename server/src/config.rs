@@ -24,6 +24,24 @@ pub fn build_host(domain: &str, port: Option<u16>) -> String {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AuthMode {
+    Enabled,
+    Disabled,
+}
+
+pub fn resolve_auth_mode_from_env() -> AuthMode {
+    let client_id = std::env::var("STATICHUB_GOOGLE_CLIENT_ID").ok();
+    let client_secret = std::env::var("STATICHUB_GOOGLE_CLIENT_SECRET").ok();
+
+    match (client_id, client_secret) {
+        (Some(id), Some(secret)) if !id.trim().is_empty() && !secret.trim().is_empty() => {
+            AuthMode::Enabled
+        }
+        _ => AuthMode::Disabled,
+    }
+}
+
 #[derive(Clone)]
 pub struct ServerConfig {
     pub port: u16,
@@ -337,5 +355,41 @@ mod config_tests {
         };
         assert_eq!(config.extract_base_domain("example.com"), None);
         assert_eq!(config.extract_base_domain("otherstatichub.dev"), None);
+    }
+
+    #[test]
+    #[serial]
+    fn test_auth_mode_enabled_when_google_env_present() {
+        std::env::set_var("STATICHUB_GOOGLE_CLIENT_ID", "id");
+        std::env::set_var("STATICHUB_GOOGLE_CLIENT_SECRET", "secret");
+
+        let mode = resolve_auth_mode_from_env();
+        assert_eq!(mode, AuthMode::Enabled);
+
+        std::env::remove_var("STATICHUB_GOOGLE_CLIENT_ID");
+        std::env::remove_var("STATICHUB_GOOGLE_CLIENT_SECRET");
+    }
+
+    #[test]
+    #[serial]
+    fn test_auth_mode_disabled_when_google_env_missing() {
+        std::env::remove_var("STATICHUB_GOOGLE_CLIENT_ID");
+        std::env::remove_var("STATICHUB_GOOGLE_CLIENT_SECRET");
+
+        let mode = resolve_auth_mode_from_env();
+        assert_eq!(mode, AuthMode::Disabled);
+    }
+
+    #[test]
+    #[serial]
+    fn test_auth_mode_disabled_when_google_env_empty() {
+        std::env::set_var("STATICHUB_GOOGLE_CLIENT_ID", "");
+        std::env::set_var("STATICHUB_GOOGLE_CLIENT_SECRET", "secret");
+
+        let mode = resolve_auth_mode_from_env();
+        assert_eq!(mode, AuthMode::Disabled);
+
+        std::env::remove_var("STATICHUB_GOOGLE_CLIENT_ID");
+        std::env::remove_var("STATICHUB_GOOGLE_CLIENT_SECRET");
     }
 }

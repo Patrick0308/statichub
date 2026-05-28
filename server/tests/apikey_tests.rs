@@ -24,7 +24,7 @@ fn create_test_router_with_middleware(
         port: 3000,
         allowed_domains: vec!["localhost".to_string()],
     };
-    create_router(deploy_state, auth_state).layer(middleware::from_fn_with_state(
+    create_router(deploy_state, statichub_server::config::AuthMode::Enabled, Some(auth_state)).layer(middleware::from_fn_with_state(
         config,
         statichub_server::middleware::host_validation_middleware,
     ))

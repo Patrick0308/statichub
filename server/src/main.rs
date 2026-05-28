@@ -1,6 +1,10 @@
 use clap::Parser;
 use statichub_server::tls::{CertificateManager, CloudflareSolver, DnsSolver, TlsConfig};
-use statichub_server::{api, cli, config::ServerConfig, create_router, db, storage};
+use statichub_server::{
+    api, cli,
+    config::{resolve_auth_mode_from_env, AuthMode, ServerConfig},
+    create_router, db, storage,
+};
 use std::{io::Write, net::SocketAddr, sync::Arc};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
@@ -96,23 +100,34 @@ async fn serve() -> anyhow::Result<()> {
         storage: storage.clone(),
     });
 
-    let auth_state = Arc::new(api::AuthState::new(
-        pool.clone(),
-        std::env::var("STATICHUB_GOOGLE_CLIENT_ID")
-            .expect("STATICHUB_GOOGLE_CLIENT_ID must be set"),
-        std::env::var("STATICHUB_GOOGLE_CLIENT_SECRET")
-            .expect("STATICHUB_GOOGLE_CLIENT_SECRET must be set"),
-        std::env::var("STATICHUB_GOOGLE_REDIRECT_URL")
-            .unwrap_or_else(|_| "http://localhost:3000/auth/callback/google".to_string()),
-        std::env::var("STATICHUB_JWT_SECRET")
-            .expect("STATICHUB_JWT_SECRET must be set in production"),
-    )?);
+    let auth_mode = resolve_auth_mode_from_env();
+    let auth_state = match auth_mode {
+        AuthMode::Enabled => Some(Arc::new(api::AuthState::new(
+            pool.clone(),
+            std::env::var("STATICHUB_GOOGLE_CLIENT_ID")
+                .expect("STATICHUB_GOOGLE_CLIENT_ID must be set"),
+            std::env::var("STATICHUB_GOOGLE_CLIENT_SECRET")
+                .expect("STATICHUB_GOOGLE_CLIENT_SECRET must be set"),
+            std::env::var("STATICHUB_GOOGLE_REDIRECT_URL")
+                .unwrap_or_else(|_| "http://localhost:3000/auth/callback/google".to_string()),
+            std::env::var("STATICHUB_JWT_SECRET")
+                .expect("STATICHUB_JWT_SECRET must be set in production"),
+        )?)),
+        AuthMode::Disabled => {
+            tracing::warn!(
+                "Auth disabled: missing Google OAuth env vars; /auth and protected APIs return 503"
+            );
+            None
+        }
+    };
 
     // Build router
-    let app = create_router(deploy_state, auth_state).layer(axum::middleware::from_fn_with_state(
-        config.clone(),
-        statichub_server::middleware::host_validation_middleware,
-    ));
+    let app = create_router(deploy_state, auth_mode, auth_state).layer(
+        axum::middleware::from_fn_with_state(
+            config.clone(),
+            statichub_server::middleware::host_validation_middleware,
+        ),
+    );
 
     // Check if TLS is enabled
     if let Some(tls_config) = TlsConfig::from_env(&config.allowed_domains)? {

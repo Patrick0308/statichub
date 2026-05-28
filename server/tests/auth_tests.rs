@@ -30,7 +30,7 @@ async fn test_login_initiation(pool: SqlitePool) {
         .unwrap(),
     );
 
-    let app = create_router(deploy_state, auth_state);
+    let app = create_router(deploy_state, statichub_server::config::AuthMode::Enabled, Some(auth_state));
 
     let response = app
         .oneshot(
@@ -79,7 +79,7 @@ async fn test_auth_status_not_ready(pool: SqlitePool) {
         .unwrap(),
     );
 
-    let app = create_router(deploy_state, auth_state);
+    let app = create_router(deploy_state, statichub_server::config::AuthMode::Enabled, Some(auth_state));
 
     let response = app
         .oneshot(
@@ -120,7 +120,7 @@ async fn test_auth_status_after_login(pool: SqlitePool) {
     );
 
     // First create a session via login
-    let app = create_router(deploy_state.clone(), auth_state.clone());
+    let app = create_router(deploy_state.clone(), statichub_server::config::AuthMode::Enabled, Some(auth_state.clone()));
 
     let response = app
         .oneshot(
@@ -137,7 +137,7 @@ async fn test_auth_status_after_login(pool: SqlitePool) {
     assert_eq!(response.status(), StatusCode::OK);
 
     // Now check the status - should exist but token should be null
-    let app = create_router(deploy_state, auth_state);
+    let app = create_router(deploy_state, statichub_server::config::AuthMode::Enabled, Some(auth_state));
 
     let response = app
         .oneshot(
@@ -178,7 +178,7 @@ async fn test_duplicate_session_id_returns_conflict(pool: SqlitePool) {
         .unwrap(),
     );
 
-    let app = create_router(deploy_state.clone(), auth_state.clone());
+    let app = create_router(deploy_state.clone(), statichub_server::config::AuthMode::Enabled, Some(auth_state.clone()));
 
     // First login request should succeed
     let response = app
@@ -196,7 +196,7 @@ async fn test_duplicate_session_id_returns_conflict(pool: SqlitePool) {
     assert_eq!(response.status(), StatusCode::OK);
 
     // Second login request with same session_id should return Conflict
-    let app = create_router(deploy_state, auth_state);
+    let app = create_router(deploy_state, statichub_server::config::AuthMode::Enabled, Some(auth_state));
 
     let response = app
         .oneshot(
@@ -264,4 +264,86 @@ async fn test_session_not_found_check(pool: SqlitePool) {
 
     // The actual OAuth callback logic will now check for session existence
     // and return an error if the session doesn't exist, preventing silent failures
+}
+
+#[sqlx::test]
+async fn auth_login_returns_503_when_auth_disabled(pool: SqlitePool) {
+    let deploy_state = Arc::new(DeployState {
+        pool: pool.clone(),
+        storage: Arc::new(FilesystemStorage::new("./test_storage".into())),
+    });
+
+    let app = create_router(deploy_state, statichub_server::config::AuthMode::Disabled, None);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/auth/login/google")
+                .method("POST")
+                .header("content-type", "application/json")
+                .body(Body::from(r#"{"session_id":"test-session-123"}"#))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let json: Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(json["error"], "authentication is disabled in local mode");
+}
+
+#[sqlx::test]
+async fn protected_route_returns_503_when_auth_disabled(pool: SqlitePool) {
+    let deploy_state = Arc::new(DeployState {
+        pool: pool.clone(),
+        storage: Arc::new(FilesystemStorage::new("./test_storage".into())),
+    });
+
+    let app = create_router(deploy_state, statichub_server::config::AuthMode::Disabled, None);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/projects")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let json: Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(json["error"], "authentication is disabled in local mode");
+}
+
+#[sqlx::test]
+async fn anonymous_route_still_available_when_auth_disabled(pool: SqlitePool) {
+    let deploy_state = Arc::new(DeployState {
+        pool: pool.clone(),
+        storage: Arc::new(FilesystemStorage::new("./test_storage".into())),
+    });
+
+    let app = create_router(deploy_state, statichub_server::config::AuthMode::Disabled, None);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/api/deploys/anonymous")
+                .method("POST")
+                .header("content-type", "application/json")
+                .body(Body::from(
+                    r#"{"files":[{"path":"index.html","content":"<h1>ok</h1>"}]}"#,
+                ))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_ne!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
 }

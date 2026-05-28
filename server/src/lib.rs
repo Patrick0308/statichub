@@ -22,34 +22,58 @@ use tower_http::trace::{DefaultMakeSpan, TraceLayer};
 
 pub fn create_router(
     deploy_state: Arc<api::DeployState>,
-    auth_state: Arc<api::AuthState>,
+    auth_mode: config::AuthMode,
+    auth_state: Option<Arc<api::AuthState>>,
 ) -> Router {
-    let auth_routes = Router::new()
-        .route("/auth/login/google", post(api::login_google))
-        .route("/auth/callback/google", get(api::callback_google))
-        .route("/auth/status/:session_id", get(api::auth_status))
-        .with_state(auth_state.clone());
-
     let deploy_routes = Router::new()
         .route("/api/deploys/anonymous", post(api::create_anonymous_deploy))
         .with_state(deploy_state.clone());
 
-    // Authenticated routes with JWT middleware
-    let authenticated_routes = Router::new()
-        .route(
-            "/api/projects/:name/deploys",
-            post(api::create_project_deploy),
-        )
-        .route("/api/apikeys", post(api::create_api_key).get(api::list_api_keys))
-        .route("/api/apikeys/:id/revoke", post(api::revoke_api_key))
-        .route("/api/projects", get(api::list_projects))
-        .route("/api/projects/:name", get(api::get_project_info))
-        .route("/api/projects/:name/rollback", post(api::rollback_project))
-        .layer(axum_middleware::from_fn_with_state(
-            auth_state.clone(),
-            middleware::auth_middleware,
-        ))
-        .with_state(deploy_state.clone());
+    let (auth_routes, authenticated_routes) = match auth_mode {
+        config::AuthMode::Enabled => {
+            let auth_state = auth_state.expect("auth_state must be present when auth is enabled");
+            let auth_routes = Router::new()
+                .route("/auth/login/google", post(api::login_google))
+                .route("/auth/callback/google", get(api::callback_google))
+                .route("/auth/status/:session_id", get(api::auth_status))
+                .with_state(auth_state.clone());
+
+            let authenticated_routes = Router::new()
+                .route(
+                    "/api/projects/:name/deploys",
+                    post(api::create_project_deploy),
+                )
+                .route("/api/apikeys", post(api::create_api_key).get(api::list_api_keys))
+                .route("/api/apikeys/:id/revoke", post(api::revoke_api_key))
+                .route("/api/projects", get(api::list_projects))
+                .route("/api/projects/:name", get(api::get_project_info))
+                .route("/api/projects/:name/rollback", post(api::rollback_project))
+                .layer(axum_middleware::from_fn_with_state(
+                    auth_state,
+                    middleware::auth_middleware,
+                ))
+                .with_state(deploy_state.clone());
+            (auth_routes, authenticated_routes)
+        }
+        config::AuthMode::Disabled => {
+            let auth_routes = Router::new()
+                .route("/auth/login/google", post(api::auth_disabled))
+                .route("/auth/callback/google", get(api::auth_disabled))
+                .route("/auth/status/:session_id", get(api::auth_disabled));
+
+            let authenticated_routes = Router::new()
+                .route("/api/projects/:name/deploys", post(api::protected_disabled))
+                .route(
+                    "/api/apikeys",
+                    post(api::protected_disabled).get(api::protected_disabled),
+                )
+                .route("/api/apikeys/:id/revoke", post(api::protected_disabled))
+                .route("/api/projects", get(api::protected_disabled))
+                .route("/api/projects/:name", get(api::protected_disabled))
+                .route("/api/projects/:name/rollback", post(api::protected_disabled));
+            (auth_routes, authenticated_routes)
+        }
+    };
 
     Router::new()
         .route("/health", get(health_check))

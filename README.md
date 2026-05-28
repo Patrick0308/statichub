@@ -131,10 +131,22 @@ Important env vars:
 - `STATICHUB_ALLOWED_DOMAINS`
 - `STATICHUB_DATABASE_URL`
 - `STATICHUB_STORAGE_PATH`
+
+Optional auth env vars (required only when auth is enabled):
+
 - `STATICHUB_JWT_SECRET`
 - `STATICHUB_GOOGLE_CLIENT_ID`
 - `STATICHUB_GOOGLE_CLIENT_SECRET`
 - `STATICHUB_GOOGLE_REDIRECT_URL`
+
+Quick local startup behavior:
+
+- If `STATICHUB_GOOGLE_CLIENT_ID` and `STATICHUB_GOOGLE_CLIENT_SECRET` are both set, auth is enabled (existing behavior).
+- If either one is missing, server starts in auth-disabled local mode.
+- In auth-disabled local mode:
+- `/auth/*` returns `503`
+- authenticated management APIs return `503`
+- anonymous deploy and static serving remain available
 
 ## Routing Behavior
 
