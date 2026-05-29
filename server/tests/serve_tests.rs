@@ -628,8 +628,9 @@ async fn test_base_domain_root_serves_homepage(pool: SqlitePool) {
         .await
         .unwrap();
     let html = String::from_utf8(body.to_vec()).unwrap();
-    assert!(html.contains("AI-generated content"));
-    assert!(html.contains("auto-published."));
+    assert!(html.contains("From prompt to"));
+    assert!(html.contains("production URL."));
+    assert!(html.contains("Use statichub skill"));
     assert!(html.contains("id=\"hero\""));
     assert!(html.contains("/__home/home.css"));
     assert!(html.contains("/__home/home.js"));
