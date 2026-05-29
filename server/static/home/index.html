@@ -4,7 +4,15 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Statichub | AI-generated content, auto-published</title>
-    <link rel="stylesheet" href="/__home/home.css" />
+    <link rel="stylesheet" id="home-style" href="/__home/home.css" />
+    <script>
+      (function () {
+        if (window.location.protocol === "file:") {
+          var style = document.getElementById("home-style");
+          if (style) style.href = "home.css";
+        }
+      })();
+    </script>
   </head>
   <body>
     <header class="site-header">
@@ -18,22 +26,30 @@
         </nav>
         <div class="header-actions">
           <a class="btn btn-ghost" href="https://github.com/Patrick0308/statichub" target="_blank" rel="noopener noreferrer">GitHub</a>
-          <a class="btn btn-primary" href="#install" data-analytics="install-primary">Auto-publish now</a>
+          <a class="btn btn-primary" href="#quickstart" data-analytics="install-primary">Use statichub skill</a>
         </div>
       </div>
     </header>
 
     <main>
       <section class="hero wrap" id="hero">
-        <p class="hero-pill">For AI coding workflows</p>
+        <p class="hero-pill">For AI publishing workflows</p>
         <h1>
-          AI-generated content<br />
-          <span>auto-published.</span>
+          From prompt to<br />
+          <span>production URL.</span>
         </h1>
-        <p class="hero-sub">Statichub Skill and CLI turn generated output into a live URL automatically.</p>
+        <p class="hero-sub">Use statichub skill for auto-publish workflows, with CLI install and deploy always available.</p>
         <div class="hero-actions">
-          <a class="btn btn-primary" href="#install" data-analytics="install-primary">Auto-publish now</a>
-          <a class="btn btn-outline" href="#quickstart" data-analytics="use-skill">Quickstart</a>
+          <a class="btn btn-primary" href="#quickstart" data-analytics="use-skill">Use statichub skill</a>
+          <a class="btn btn-outline" href="#install" data-analytics="install-primary">Install CLI</a>
+        </div>
+        <p class="hero-tertiary">
+          <a href="#deploy-example" data-analytics="run-first-deploy">Run first deploy</a>
+        </p>
+        <div class="hero-flow" aria-hidden="true">
+          <span>Generate</span>
+          <span>Deploy</span>
+          <span>Live URL</span>
         </div>
       </section>
 
@@ -48,15 +64,20 @@
       </section>
 
       <section class="feature-grid wrap" id="capabilities">
+        <article class="feature-card" id="deploy-example">
+          <h3>Single-file deploy</h3>
+          <p>Try a single-file deploy from README quick start.</p>
+          <code>statichub deploy ./page.html</code>
+        </article>
         <article class="feature-card">
           <h3>Directory deploy</h3>
           <p>Publish a build output directory immediately.</p>
           <code>statichub deploy ./dist</code>
         </article>
         <article class="feature-card">
-          <h3>Single HTML deploy</h3>
-          <p>Ship one HTML file directly.</p>
-          <code>statichub deploy ~/Downloads/page.html</code>
+          <h3>Project rollback</h3>
+          <p>Rollback a named project to a previous version.</p>
+          <code>statichub rollback my-app 3</code>
         </article>
         <article class="feature-card">
           <h3>Named project</h3>
@@ -128,6 +149,13 @@
       </section>
     </main>
 
-    <script src="/__home/home.js" defer></script>
+    <script>
+      (function () {
+        var script = document.createElement("script");
+        script.defer = true;
+        script.src = window.location.protocol === "file:" ? "home.js" : "/__home/home.js";
+        document.body.appendChild(script);
+      })();
+    </script>
   </body>
 </html>
