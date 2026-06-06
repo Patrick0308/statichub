@@ -8,6 +8,7 @@ use statichub_server::{
     api::{AuthState, DeployState},
     config::ServerConfig,
     create_router,
+    markdown,
     models::{Deploy, Project},
     storage::{FilesystemStorage, Storage},
 };
@@ -39,7 +40,12 @@ fn create_test_router_with_middleware(
             "*.statichub.io".to_string(),
         ],
     };
-    create_router(deploy_state, statichub_server::config::AuthMode::Enabled, Some(auth_state)).layer(middleware::from_fn_with_state(
+    create_router(
+        deploy_state,
+        statichub_server::config::AuthMode::Enabled,
+        Some(auth_state),
+    )
+    .layer(middleware::from_fn_with_state(
         config,
         statichub_server::middleware::host_validation_middleware,
     ))
@@ -108,6 +114,83 @@ async fn test_serve_index_html(pool: SqlitePool) {
         .await
         .unwrap();
     assert_eq!(&body[..], b"<h1>Hello</h1>");
+}
+
+#[sqlx::test]
+async fn test_serve_markdown_deploy_artifacts(pool: SqlitePool) {
+    let temp_dir = tempfile::tempdir().unwrap();
+    let storage = Arc::new(FilesystemStorage::new(temp_dir.path().to_path_buf()));
+    let project = Project::create_anonymous(&pool, None).await.unwrap();
+    let storage_path = format!("{}/deploy-1", project.subdomain);
+    let deploy = Deploy::create(&pool, project.id, &storage_path)
+        .await
+        .unwrap();
+
+    sqlx::query("UPDATE projects SET current_deploy_id = ? WHERE id = ?")
+        .bind(deploy.id)
+        .bind(project.id)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    let markdown_source = b"# Markdown Home\n\nServed from **HTML**.";
+    let html = markdown::render_markdown_document(markdown_source).unwrap();
+    storage
+        .store_file(&storage_path, "index.md", markdown_source)
+        .await
+        .unwrap();
+    storage
+        .store_file(&storage_path, "index.html", &html)
+        .await
+        .unwrap();
+
+    let state = Arc::new(DeployState {
+        pool: pool.clone(),
+        storage: storage.clone(),
+    });
+    let auth_state = create_test_auth_state(pool.clone());
+    let app = create_test_router_with_middleware(state, auth_state);
+
+    let html_response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/")
+                .header("Host", &format!("{}.statichub.io", project.subdomain))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(html_response.status(), StatusCode::OK);
+    assert_eq!(
+        html_response.headers().get("content-type").unwrap(),
+        "text/html"
+    );
+    let html_body = axum::body::to_bytes(html_response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let html_body = String::from_utf8(html_body.to_vec()).unwrap();
+    assert!(html_body.contains("<h1>Markdown Home</h1>"));
+    assert!(html_body.contains("<strong>HTML</strong>"));
+
+    let markdown_response = app
+        .oneshot(
+            Request::builder()
+                .uri("/index.md")
+                .header("Host", &format!("{}.statichub.io", project.subdomain))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(markdown_response.status(), StatusCode::OK);
+    let markdown_body = axum::body::to_bytes(markdown_response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    assert_eq!(&markdown_body[..], markdown_source);
 }
 
 #[sqlx::test]

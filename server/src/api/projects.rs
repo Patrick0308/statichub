@@ -9,7 +9,6 @@ use crate::{
     error::{AppError, Result},
     middleware::{AuthUser, RequestHost},
     models::{Deploy, Project},
-    storage::Storage,
 };
 
 // Re-export DeployState from deploys module instead of duplicating
@@ -74,31 +73,29 @@ pub async fn create_project_deploy(
     tx.commit().await?;
 
     // Process multipart upload (outside transaction since it's not DB)
-    let mut file_count = 0;
-    let mut total_size = 0u64;
-
-    let upload_result = process_multipart_files(
+    let upload_result = super::upload::process_multipart_files(
         &mut multipart,
         &state.storage,
         &actual_storage_path,
-        &mut file_count,
-        &mut total_size,
     )
     .await;
 
     // If storage fails, mark deploy as failed
-    if let Err(e) = upload_result {
-        let _ = Deploy::update_status(&state.pool, deploy.id, "failed", 0, 0).await;
-        return Err(e);
-    }
+    let upload = match upload_result {
+        Ok(upload) => upload,
+        Err(e) => {
+            let _ = Deploy::update_status(&state.pool, deploy.id, "failed", 0, 0).await;
+            return Err(e);
+        }
+    };
 
     // Update deploy status
     Deploy::update_status(
         &state.pool,
         deploy.id,
         "ready",
-        file_count,
-        total_size as i64,
+        upload.file_count,
+        upload.total_size as i64,
     )
     .await?;
 
@@ -139,106 +136,6 @@ fn validate_project_name(name: &str) -> Result<()> {
     Ok(())
 }
 
-async fn process_multipart_files(
-    multipart: &mut Multipart,
-    storage: &Arc<dyn Storage>,
-    storage_path: &str,
-    file_count: &mut i64,
-    total_size: &mut u64,
-) -> Result<()> {
-    const MAX_FILE_SIZE: u64 = 100 * 1024 * 1024; // 100MB per file
-    const MAX_TOTAL_SIZE: u64 = 500 * 1024 * 1024; // 500MB total
-    const MAX_FILE_COUNT: i64 = 1000; // Max 1000 files
-
-    while let Some(field) = multipart
-        .next_field()
-        .await
-        .map_err(|e| AppError::BadRequest(format!("Invalid multipart data: {}", e)))?
-    {
-        // Skip fields without filename (e.g., "config" text field)
-        let filename = match field.file_name() {
-            Some(name) => name.to_string(),
-            None => continue,
-        };
-
-        let sanitized_filename = sanitize_filename(&filename)?;
-
-        // Read file data
-        let data = field
-            .bytes()
-            .await
-            .map_err(|e| AppError::BadRequest(format!("Failed to read file data: {}", e)))?;
-
-        // Check file size limits
-        if data.len() as u64 > MAX_FILE_SIZE {
-            return Err(AppError::BadRequest(format!(
-                "File '{}' exceeds maximum size of 100MB",
-                sanitized_filename
-            )));
-        }
-
-        *total_size += data.len() as u64;
-        if *total_size > MAX_TOTAL_SIZE {
-            return Err(AppError::BadRequest(
-                "Total upload size exceeds maximum of 500MB".to_string(),
-            ));
-        }
-
-        *file_count += 1;
-        if *file_count > MAX_FILE_COUNT {
-            return Err(AppError::BadRequest(
-                "Too many files (maximum 1000)".to_string(),
-            ));
-        }
-
-        // Store the file
-        storage
-            .store_file(storage_path, &sanitized_filename, &data)
-            .await
-            .map_err(|e| AppError::Storage(e.to_string()))?;
-    }
-
-    Ok(())
-}
-
-fn sanitize_filename(filename: &str) -> Result<String> {
-    // Reject empty filenames
-    if filename.trim().is_empty() {
-        return Err(AppError::BadRequest("Filename cannot be empty".to_string()));
-    }
-
-    // Reject paths with directory traversal attempts
-    if filename.contains("..") {
-        return Err(AppError::BadRequest(format!(
-            "Invalid filename: '{}' contains directory traversal",
-            filename
-        )));
-    }
-
-    // Reject absolute paths (starting with / or \)
-    if filename.starts_with('/') || filename.starts_with('\\') {
-        return Err(AppError::BadRequest(format!(
-            "Invalid filename: '{}' cannot be an absolute path",
-            filename
-        )));
-    }
-
-    // Normalize path separators to forward slashes
-    let normalized = filename.replace('\\', "/");
-
-    // Reject any path component starting with a dot (hidden files/directories)
-    for component in normalized.split('/') {
-        if component.starts_with('.') {
-            return Err(AppError::BadRequest(format!(
-                "Invalid filename: '{}' contains hidden file or directory",
-                filename
-            )));
-        }
-    }
-
-    Ok(normalized)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -271,32 +168,5 @@ mod tests {
         // Starts/ends with hyphen
         assert!(validate_project_name("-myapp").is_err());
         assert!(validate_project_name("myapp-").is_err());
-    }
-
-    #[test]
-    fn test_sanitize_filename_valid() {
-        assert!(sanitize_filename("index.html").is_ok());
-        assert!(sanitize_filename("styles.css").is_ok());
-        assert!(sanitize_filename("script.js").is_ok());
-        // Subdirectories are allowed
-        assert!(sanitize_filename("css/styles.css").is_ok());
-        assert!(sanitize_filename("js/app.js").is_ok());
-        assert!(sanitize_filename("assets/images/logo.png").is_ok());
-    }
-
-    #[test]
-    fn test_sanitize_filename_invalid() {
-        // Directory traversal
-        assert!(sanitize_filename("../etc/passwd").is_err());
-        assert!(sanitize_filename("..\\windows\\system32").is_err());
-        assert!(sanitize_filename("dir/../file.txt").is_err());
-
-        // Empty
-        assert!(sanitize_filename("").is_err());
-        assert!(sanitize_filename("   ").is_err());
-
-        // Hidden files
-        assert!(sanitize_filename(".htaccess").is_err());
-        assert!(sanitize_filename("dir/.hidden").is_err());
     }
 }

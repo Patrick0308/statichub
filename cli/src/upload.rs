@@ -18,16 +18,16 @@ pub fn collect_files(dir: &Path) -> Result<Vec<UploadFile>> {
     // Detect if the path is a single file
     if dir.is_file() {
         // Check file extension
-        let extension = dir.extension()
-            .and_then(|s| s.to_str())
-            .unwrap_or("");
+        let extension = dir.extension().and_then(|s| s.to_str()).unwrap_or("");
 
-        if extension != "html" && extension != "htm" {
-            anyhow::bail!(
-                "Single file deployment only supports .html and .htm files. Got: .{}",
+        let upload_path = match extension {
+            "html" | "htm" => "index.html",
+            "md" | "markdown" => "index.md",
+            _ => anyhow::bail!(
+                "Single file deployment only supports .html, .htm, .md, and .markdown files. Got: .{}",
                 extension
-            );
-        }
+            ),
+        };
 
         let mut content = Vec::new();
         File::open(dir)
@@ -36,7 +36,7 @@ pub fn collect_files(dir: &Path) -> Result<Vec<UploadFile>> {
             .with_context(|| format!("Failed to read file: {}", dir.display()))?;
 
         files.push(UploadFile {
-            path: "index.html".to_string(),
+            path: upload_path.to_string(),
             content,
         });
 
@@ -80,7 +80,8 @@ fn is_excluded(path: &Path, base_dir: &Path) -> bool {
     }
 
     // Exclude hidden files and directories
-    if path.file_name()
+    if path
+        .file_name()
         .and_then(|s| s.to_str())
         .map(|s| s.starts_with('.'))
         .unwrap_or(false)
@@ -90,12 +91,7 @@ fn is_excluded(path: &Path, base_dir: &Path) -> bool {
 
     // Exclude common directories
     // Note: .git, .svn, .hg are already caught by hidden-file check above
-    let excluded_dirs = [
-        "node_modules",
-        "target",
-        "dist",
-        "build",
-    ];
+    let excluded_dirs = ["node_modules", "target", "dist", "build"];
 
     // Check if the directory name itself is excluded
     if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
@@ -132,7 +128,9 @@ pub fn create_tarball(files: &[UploadFile]) -> Result<Vec<u8>> {
         .into_inner()
         .context("Failed to finish tar archive")?;
 
-    encoder.finish().context("Failed to finish gzip compression")?;
+    encoder
+        .finish()
+        .context("Failed to finish gzip compression")?;
 
     Ok(buffer)
 }
@@ -246,6 +244,32 @@ mod tests {
     }
 
     #[test]
+    fn test_collect_single_md_file() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("README.md");
+        fs::write(&file_path, b"# Hello\n\nMarkdown body").unwrap();
+
+        let files = collect_files(&file_path).unwrap();
+
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "index.md");
+        assert_eq!(files[0].content, b"# Hello\n\nMarkdown body");
+    }
+
+    #[test]
+    fn test_collect_single_markdown_file() {
+        let temp = TempDir::new().unwrap();
+        let file_path = temp.path().join("README.markdown");
+        fs::write(&file_path, b"# Long Extension").unwrap();
+
+        let files = collect_files(&file_path).unwrap();
+
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0].path, "index.md");
+        assert_eq!(files[0].content, b"# Long Extension");
+    }
+
+    #[test]
     fn test_reject_non_html_file() {
         let temp = TempDir::new().unwrap();
         let file_path = temp.path().join("document.pdf");
@@ -255,7 +279,7 @@ mod tests {
 
         assert!(result.is_err());
         let error_msg = result.unwrap_err().to_string();
-        assert!(error_msg.contains("only supports .html and .htm files"));
+        assert!(error_msg.contains("only supports .html, .htm, .md, and .markdown files"));
         assert!(error_msg.contains("Got: .pdf"));
     }
 
@@ -268,7 +292,10 @@ mod tests {
         let result = collect_files(&file_path);
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("only supports .html and .htm files"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("only supports .html, .htm, .md, and .markdown files"));
     }
 
     #[test]
@@ -280,7 +307,10 @@ mod tests {
         let result = collect_files(&file_path);
 
         assert!(result.is_err());
-        assert!(result.unwrap_err().to_string().contains("only supports .html and .htm files"));
+        assert!(result
+            .unwrap_err()
+            .to_string()
+            .contains("only supports .html, .htm, .md, and .markdown files"));
     }
 
     #[test]
@@ -293,7 +323,7 @@ mod tests {
 
         assert!(result.is_err());
         let error_msg = result.unwrap_err().to_string();
-        assert!(error_msg.contains("only supports .html and .htm files"));
+        assert!(error_msg.contains("only supports .html, .htm, .md, and .markdown files"));
         assert!(error_msg.contains("Got: ."));
     }
 
