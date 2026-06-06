@@ -3,6 +3,7 @@ pub mod cli;
 pub mod config;
 pub mod db;
 pub mod error;
+pub mod markdown;
 pub mod middleware;
 pub mod models;
 pub mod storage;

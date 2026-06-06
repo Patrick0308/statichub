@@ -65,6 +65,7 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 rand = "0.8"
 dotenv = "0.15"
+pulldown-cmark = "0.10"
 
 # Shared crate
 statichub-shared = { path = "../shared" }

@@ -5,6 +5,7 @@ mod deploys;
 mod management;
 mod projects;
 mod serve;
+mod upload;
 
 pub use auth::{auth_status, callback_google, login_google, AuthState, PendingSession};
 pub use auth_disabled::{auth_disabled, protected_disabled};
