@@ -57,8 +57,9 @@ pub struct LoginResponse {
 
 #[derive(Debug, Deserialize)]
 pub struct CallbackQuery {
-    pub code: String,
+    pub code: Option<String>,
     pub state: String, // session_id
+    pub error: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -444,10 +445,43 @@ pub async fn callback_google(
     State(state): State<Arc<AuthState>>,
     Query(query): Query<CallbackQuery>,
 ) -> Result<Response> {
+    if let Some(error) = query.error.as_deref() {
+        if error == "access_denied" {
+            if let Some(device_session) =
+                DeviceLoginSession::find_by_oauth_state(&state.pool, &query.state).await?
+            {
+                match DeviceLoginSession::deny(&state.pool, device_session.id).await {
+                    Ok(_) => {
+                        return Ok((
+                            StatusCode::OK,
+                            "Authentication was denied. You can close this window and return to your terminal.",
+                        )
+                            .into_response());
+                    }
+                    Err(sqlx::Error::RowNotFound) => {
+                        return Err(AppError::Conflict(
+                            "Device login session is no longer awaiting approval".to_string(),
+                        ));
+                    }
+                    Err(err) => return Err(err.into()),
+                }
+            }
+        }
+
+        return Err(AppError::BadRequest(format!(
+            "OAuth authentication failed: {}",
+            error
+        )));
+    }
+
+    let code = query
+        .code
+        .ok_or_else(|| AppError::BadRequest("Missing OAuth authorization code".to_string()))?;
+
     // Exchange code for token
     let token_result = state
         .oauth_client
-        .exchange_code(AuthorizationCode::new(query.code))
+        .exchange_code(AuthorizationCode::new(code))
         .request_async(async_http_client)
         .await
         .map_err(|e| AppError::Internal(format!("OAuth token exchange failed: {}", e)))?;

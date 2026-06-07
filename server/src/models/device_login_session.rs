@@ -154,6 +154,23 @@ impl DeviceLoginSession {
         .await
     }
 
+    pub async fn deny(pool: &SqlitePool, id: i64) -> Result<Self, sqlx::Error> {
+        sqlx::query_as::<_, DeviceLoginSession>(
+            r#"
+            UPDATE device_login_sessions
+            SET token = NULL, status = ?
+            WHERE id = ? AND status IN (?, ?)
+            RETURNING *
+            "#,
+        )
+        .bind(DeviceLoginStatus::Denied.as_str())
+        .bind(id)
+        .bind(DeviceLoginStatus::Pending.as_str())
+        .bind(DeviceLoginStatus::Verified.as_str())
+        .fetch_one(pool)
+        .await
+    }
+
     pub async fn mark_polled(pool: &SqlitePool, id: i64) -> Result<(), sqlx::Error> {
         sqlx::query(
             "UPDATE device_login_sessions SET last_polled_at = CURRENT_TIMESTAMP WHERE id = ?",
@@ -379,6 +396,39 @@ mod tests {
             .await
             .unwrap_err();
         assert!(matches!(err, sqlx::Error::RowNotFound));
+    }
+
+    #[tokio::test]
+    async fn deny_marks_pending_or_verified_session_denied() {
+        let pool = crate::test_utils::create_test_pool().await.unwrap();
+
+        let pending = DeviceLoginSession::create(
+            &pool,
+            "deny-pending-hash",
+            "DNYPEN",
+            future_expires_at(),
+            5,
+        )
+        .await
+        .unwrap();
+        let denied = DeviceLoginSession::deny(&pool, pending.id).await.unwrap();
+        assert_eq!(denied.status(), DeviceLoginStatus::Denied);
+        assert!(denied.token.is_none());
+
+        let verified = DeviceLoginSession::create(
+            &pool,
+            "deny-verified-hash",
+            "DNYVER",
+            future_expires_at(),
+            5,
+        )
+        .await
+        .unwrap();
+        DeviceLoginSession::attach_oauth_state(&pool, verified.id, "deny-state")
+            .await
+            .unwrap();
+        let denied = DeviceLoginSession::deny(&pool, verified.id).await.unwrap();
+        assert_eq!(denied.status(), DeviceLoginStatus::Denied);
     }
 
     #[tokio::test]

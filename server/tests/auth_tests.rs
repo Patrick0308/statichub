@@ -544,6 +544,112 @@ async fn device_verify_redirects_to_google(pool: SqlitePool) {
 }
 
 #[sqlx::test]
+async fn device_denied_callback_makes_poll_return_access_denied(pool: SqlitePool) {
+    let deploy_state = Arc::new(DeployState {
+        pool: pool.clone(),
+        storage: Arc::new(FilesystemStorage::new("./test_storage".into())),
+    });
+
+    let auth_state = Arc::new(
+        AuthState::new(
+            pool.clone(),
+            "test_client_id".to_string(),
+            "test_client_secret".to_string(),
+            "http://localhost:3000/auth/callback/google".to_string(),
+            "test_jwt_secret".to_string(),
+        )
+        .unwrap(),
+    );
+
+    let app = create_router(deploy_state, statichub_server::config::AuthMode::Enabled, Some(auth_state));
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/auth/device")
+                .method("POST")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let json: Value = serde_json::from_slice(&body).unwrap();
+    let device_code = json["device_code"].as_str().unwrap();
+    let user_code = json["user_code"].as_str().unwrap();
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri("/auth/device/verify")
+                .method("POST")
+                .header(
+                    header::CONTENT_TYPE,
+                    "application/x-www-form-urlencoded",
+                )
+                .body(Body::from(format!("user_code={}", user_code)))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::SEE_OTHER);
+
+    let location = response
+        .headers()
+        .get(header::LOCATION)
+        .unwrap()
+        .to_str()
+        .unwrap();
+    let state = location
+        .split('&')
+        .find_map(|part| part.strip_prefix("state="))
+        .expect("Google redirect URL should include state");
+
+    let response = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .uri(format!(
+                    "/auth/callback/google?error=access_denied&state={}",
+                    state
+                ))
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/auth/device/token")
+                .method("POST")
+                .header(header::CONTENT_TYPE, "application/json")
+                .body(Body::from(format!(
+                    r#"{{"device_code":"{}"}}"#,
+                    device_code
+                )))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let json: Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(json["status"], "access_denied");
+}
+
+#[sqlx::test]
 async fn device_start_returns_503_when_auth_disabled(pool: SqlitePool) {
     let deploy_state = Arc::new(DeployState {
         pool: pool.clone(),
