@@ -142,7 +142,7 @@ impl DeviceLoginSession {
             r#"
             UPDATE device_login_sessions
             SET token = ?, status = ?
-            WHERE id = ? AND status = ?
+            WHERE id = ? AND status = ? AND expires_at > CURRENT_TIMESTAMP
             RETURNING *
             "#,
         )
@@ -171,7 +171,10 @@ impl DeviceLoginSession {
             r#"
             SELECT token
             FROM device_login_sessions
-            WHERE id = ? AND status = ? AND token IS NOT NULL
+            WHERE id = ?
+                AND status = ?
+                AND token IS NOT NULL
+                AND expires_at > CURRENT_TIMESTAMP
             LIMIT 1
             "#,
         )
@@ -181,17 +184,26 @@ impl DeviceLoginSession {
         .await?;
 
         if token.is_some() {
-            sqlx::query(
+            let result = sqlx::query(
                 r#"
                 UPDATE device_login_sessions
                 SET token = NULL, status = ?, consumed_at = CURRENT_TIMESTAMP
                 WHERE id = ?
+                    AND status = ?
+                    AND token IS NOT NULL
+                    AND expires_at > CURRENT_TIMESTAMP
                 "#,
             )
             .bind(DeviceLoginStatus::Consumed.as_str())
             .bind(id)
+            .bind(DeviceLoginStatus::Approved.as_str())
             .execute(&mut *tx)
             .await?;
+
+            if result.rows_affected() != 1 {
+                tx.commit().await?;
+                return Ok(None);
+            }
         }
 
         tx.commit().await?;
@@ -231,13 +243,20 @@ impl DeviceLoginSession {
 mod tests {
     use super::*;
 
+    fn future_expires_at() -> chrono::NaiveDateTime {
+        chrono::Utc::now().naive_utc() + chrono::Duration::minutes(10)
+    }
+
+    fn past_expires_at() -> chrono::NaiveDateTime {
+        chrono::Utc::now().naive_utc() - chrono::Duration::minutes(10)
+    }
+
     #[tokio::test]
     async fn create_find_approve_and_consume_session() {
         let pool = crate::test_utils::create_test_pool().await.unwrap();
-        let expires_at = chrono::Utc::now().naive_utc() + chrono::Duration::minutes(10);
 
         let session =
-            DeviceLoginSession::create(&pool, "device-hash-123", "USER123", expires_at, 5)
+            DeviceLoginSession::create(&pool, "device-hash-123", "USER123", future_expires_at(), 5)
                 .await
                 .unwrap();
 
@@ -266,5 +285,174 @@ mod tests {
             .await
             .unwrap();
         assert!(token.is_none());
+    }
+
+    #[tokio::test]
+    async fn approve_rejects_expired_verified_session() {
+        let pool = crate::test_utils::create_test_pool().await.unwrap();
+        let session = DeviceLoginSession::create(
+            &pool,
+            "expired-approve-hash",
+            "EXPAPP",
+            past_expires_at(),
+            5,
+        )
+        .await
+        .unwrap();
+
+        let verified = DeviceLoginSession::attach_oauth_state(&pool, session.id, "expired-state")
+            .await
+            .unwrap();
+        assert_eq!(verified.status(), DeviceLoginStatus::Verified);
+
+        let err = DeviceLoginSession::approve(&pool, session.id, "jwt-expired")
+            .await
+            .unwrap_err();
+        assert!(matches!(err, sqlx::Error::RowNotFound));
+    }
+
+    #[tokio::test]
+    async fn consume_rejects_expired_approved_session() {
+        let pool = crate::test_utils::create_test_pool().await.unwrap();
+        let session = sqlx::query_as::<_, DeviceLoginSession>(
+            r#"
+            INSERT INTO device_login_sessions (
+                device_code_hash,
+                user_code,
+                oauth_state,
+                status,
+                token,
+                expires_at
+            )
+            VALUES (?, ?, ?, ?, ?, ?)
+            RETURNING *
+            "#,
+        )
+        .bind("expired-consume-hash")
+        .bind("EXPCON")
+        .bind("expired-consume-state")
+        .bind(DeviceLoginStatus::Approved.as_str())
+        .bind("jwt-expired")
+        .bind(past_expires_at())
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+
+        let token = DeviceLoginSession::consume_token(&pool, session.id)
+            .await
+            .unwrap();
+        assert!(token.is_none());
+
+        let found = DeviceLoginSession::find_by_device_code_hash(&pool, "expired-consume-hash")
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(found.status(), DeviceLoginStatus::Approved);
+        assert_eq!(found.token.as_deref(), Some("jwt-expired"));
+    }
+
+    #[tokio::test]
+    async fn rejects_invalid_status_transitions() {
+        let pool = crate::test_utils::create_test_pool().await.unwrap();
+        let session = DeviceLoginSession::create(
+            &pool,
+            "invalid-transition-hash",
+            "INVTRN",
+            future_expires_at(),
+            5,
+        )
+        .await
+        .unwrap();
+
+        let err = DeviceLoginSession::approve(&pool, session.id, "jwt123")
+            .await
+            .unwrap_err();
+        assert!(matches!(err, sqlx::Error::RowNotFound));
+
+        let verified =
+            DeviceLoginSession::attach_oauth_state(&pool, session.id, "invalid-transition-state")
+                .await
+                .unwrap();
+        assert_eq!(verified.status(), DeviceLoginStatus::Verified);
+
+        let err = DeviceLoginSession::attach_oauth_state(&pool, session.id, "second-state")
+            .await
+            .unwrap_err();
+        assert!(matches!(err, sqlx::Error::RowNotFound));
+    }
+
+    #[tokio::test]
+    async fn expire_old_expires_pending_verified_and_approved_sessions() {
+        let pool = crate::test_utils::create_test_pool().await.unwrap();
+        let pending = DeviceLoginSession::create(
+            &pool,
+            "expired-pending-hash",
+            "EXPPEN",
+            past_expires_at(),
+            5,
+        )
+        .await
+        .unwrap();
+        let verified = DeviceLoginSession::create(
+            &pool,
+            "expired-verified-hash",
+            "EXPVER",
+            past_expires_at(),
+            5,
+        )
+        .await
+        .unwrap();
+        DeviceLoginSession::attach_oauth_state(&pool, verified.id, "expire-old-state")
+            .await
+            .unwrap();
+        let approved = sqlx::query_as::<_, DeviceLoginSession>(
+            r#"
+            INSERT INTO device_login_sessions (
+                device_code_hash,
+                user_code,
+                status,
+                token,
+                expires_at
+            )
+            VALUES (?, ?, ?, ?, ?)
+            RETURNING *
+            "#,
+        )
+        .bind("expired-approved-hash")
+        .bind("EXPAPR")
+        .bind(DeviceLoginStatus::Approved.as_str())
+        .bind("jwt-expire-old")
+        .bind(past_expires_at())
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        let fresh = DeviceLoginSession::create(
+            &pool,
+            "fresh-pending-hash",
+            "FRSPEN",
+            future_expires_at(),
+            5,
+        )
+        .await
+        .unwrap();
+
+        let affected = DeviceLoginSession::expire_old(&pool).await.unwrap();
+        assert_eq!(affected, 3);
+
+        for session in [pending, verified, approved] {
+            let found =
+                DeviceLoginSession::find_by_device_code_hash(&pool, &session.device_code_hash)
+                    .await
+                    .unwrap()
+                    .unwrap();
+            assert_eq!(found.status(), DeviceLoginStatus::Expired);
+            assert!(found.token.is_none());
+        }
+
+        let found = DeviceLoginSession::find_by_device_code_hash(&pool, &fresh.device_code_hash)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(found.status(), DeviceLoginStatus::Pending);
     }
 }
