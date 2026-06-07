@@ -350,7 +350,15 @@ pub async fn device_verify(
     }
 
     let oauth_state = Uuid::new_v4().to_string();
-    DeviceLoginSession::attach_oauth_state(&state.pool, session.id, &oauth_state).await?;
+    match DeviceLoginSession::attach_oauth_state(&state.pool, session.id, &oauth_state).await {
+        Ok(_) => {}
+        Err(sqlx::Error::RowNotFound) => {
+            return Err(AppError::Conflict(
+                "Device login session is no longer pending".to_string(),
+            ));
+        }
+        Err(err) => return Err(err.into()),
+    }
 
     let (auth_url, _csrf_token) = state
         .oauth_client
@@ -385,6 +393,7 @@ pub async fn device_token(
         let next_allowed_at =
             last_polled_at + chrono::Duration::seconds(session.poll_interval_seconds);
         if chrono::Utc::now().naive_utc() < next_allowed_at {
+            DeviceLoginSession::mark_polled(&state.pool, session.id).await?;
             return Ok(Json(DeviceTokenResponse {
                 status: "slow_down".to_string(),
                 token: None,
@@ -396,11 +405,19 @@ pub async fn device_token(
     match session.status() {
         DeviceLoginStatus::Approved => {
             let token = DeviceLoginSession::consume_token(&state.pool, session.id).await?;
-            Ok(Json(DeviceTokenResponse {
-                status: "approved".to_string(),
-                token,
-                interval: None,
-            }))
+            if let Some(token) = token {
+                Ok(Json(DeviceTokenResponse {
+                    status: "approved".to_string(),
+                    token: Some(token),
+                    interval: None,
+                }))
+            } else {
+                Ok(Json(DeviceTokenResponse {
+                    status: "expired_token".to_string(),
+                    token: None,
+                    interval: None,
+                }))
+            }
         }
         DeviceLoginStatus::Denied => Ok(Json(DeviceTokenResponse {
             status: "access_denied".to_string(),
@@ -470,7 +487,28 @@ pub async fn callback_google(
     if let Some(device_session) =
         DeviceLoginSession::find_by_oauth_state(&state.pool, &query.state).await?
     {
-        DeviceLoginSession::approve(&state.pool, device_session.id, &jwt).await?;
+        if device_session.is_expired() || device_session.status() == DeviceLoginStatus::Expired {
+            return Err(AppError::BadRequest(
+                "Session expired. Please restart authentication.".to_string(),
+            ));
+        }
+
+        if device_session.status() != DeviceLoginStatus::Verified {
+            return Err(AppError::Conflict(
+                "Device login session is no longer awaiting approval".to_string(),
+            ));
+        }
+
+        match DeviceLoginSession::approve(&state.pool, device_session.id, &jwt).await {
+            Ok(_) => {}
+            Err(sqlx::Error::RowNotFound) => {
+                return Err(AppError::BadRequest(
+                    "Session expired. Please restart authentication.".to_string(),
+                ));
+            }
+            Err(err) => return Err(err.into()),
+        }
+
         return Ok((
             StatusCode::OK,
             "Authentication successful! You can close this window and return to your terminal.",
