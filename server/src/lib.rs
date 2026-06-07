@@ -37,6 +37,12 @@ pub fn create_router(
                 .route("/auth/login/google", post(api::login_google))
                 .route("/auth/callback/google", get(api::callback_google))
                 .route("/auth/status/:session_id", get(api::auth_status))
+                .route(
+                    "/auth/device",
+                    post(api::device_start).get(api::device_page),
+                )
+                .route("/auth/device/verify", post(api::device_verify))
+                .route("/auth/device/token", post(api::device_token))
                 .with_state(auth_state.clone());
 
             let authenticated_routes = Router::new()
@@ -60,7 +66,13 @@ pub fn create_router(
             let auth_routes = Router::new()
                 .route("/auth/login/google", post(api::auth_disabled))
                 .route("/auth/callback/google", get(api::auth_disabled))
-                .route("/auth/status/:session_id", get(api::auth_disabled));
+                .route("/auth/status/:session_id", get(api::auth_disabled))
+                .route(
+                    "/auth/device",
+                    post(api::auth_disabled).get(api::auth_disabled),
+                )
+                .route("/auth/device/verify", post(api::auth_disabled))
+                .route("/auth/device/token", post(api::auth_disabled));
 
             let authenticated_routes = Router::new()
                 .route("/api/projects/:name/deploys", post(api::protected_disabled))
