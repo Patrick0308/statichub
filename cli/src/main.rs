@@ -145,24 +145,26 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Login => {
             let server_url = resolve_server_url(cli.local);
-            let client = client::Client::new(server_url);
+            let client = client::Client::new(server_url.clone());
 
             println!("Logging in to StaticHub...");
 
             let login = client.create_device_session().await?;
+            let (verification_uri, verification_uri_complete) =
+                build_device_verification_urls(&server_url, &login.user_code);
 
             println!();
             println!("Open this URL:");
-            println!("  {}", login.verification_uri);
+            println!("  {}", verification_uri);
             println!();
             println!("Enter this code:");
             println!("  {}", login.user_code);
             println!();
             println!("Or open:");
-            println!("  {}", login.verification_uri_complete);
+            println!("  {}", verification_uri_complete);
             println!();
 
-            if let Err(e) = open::that(&login.verification_uri_complete) {
+            if let Err(e) = open::that(&verification_uri_complete) {
                 println!("Could not open browser automatically: {}", e);
                 println!("Please open the URL manually in your browser.");
                 println!();
@@ -356,6 +358,12 @@ fn resolve_server_url_from(local_port: Option<u16>, env_server: Option<&str>) ->
         .unwrap_or_else(|| "https://statichub.dev".to_string())
 }
 
+fn build_device_verification_urls(server_url: &str, user_code: &str) -> (String, String) {
+    let verification_uri = format!("{}/auth/device", server_url.trim_end_matches('/'));
+    let verification_uri_complete = format!("{}?code={}", verification_uri, user_code);
+    (verification_uri, verification_uri_complete)
+}
+
 fn resolve_project_auth_token() -> anyhow::Result<String> {
     if let Ok(key) = std::env::var("STATICHUB_API_KEY") {
         let trimmed = key.trim();
@@ -379,7 +387,7 @@ fn require_login_jwt() -> anyhow::Result<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::resolve_server_url_from;
+    use super::{build_device_verification_urls, resolve_server_url_from};
 
     #[test]
     fn resolve_server_url_prefers_local_flag() {
@@ -397,5 +405,29 @@ mod tests {
     fn resolve_server_url_uses_default_when_no_local_or_env() {
         let url = resolve_server_url_from(None, None);
         assert_eq!(url, "https://statichub.dev");
+    }
+
+    #[test]
+    fn device_verification_urls_use_resolved_server_url() {
+        let (verification_uri, verification_uri_complete) =
+            build_device_verification_urls("https://statichub.dev", "ABCD-EFGH");
+
+        assert_eq!(verification_uri, "https://statichub.dev/auth/device");
+        assert_eq!(
+            verification_uri_complete,
+            "https://statichub.dev/auth/device?code=ABCD-EFGH"
+        );
+    }
+
+    #[test]
+    fn device_verification_urls_trim_trailing_slash() {
+        let (verification_uri, verification_uri_complete) =
+            build_device_verification_urls("http://localhost:3000/", "ABCD-EFGH");
+
+        assert_eq!(verification_uri, "http://localhost:3000/auth/device");
+        assert_eq!(
+            verification_uri_complete,
+            "http://localhost:3000/auth/device?code=ABCD-EFGH"
+        );
     }
 }

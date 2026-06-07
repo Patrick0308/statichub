@@ -2,9 +2,7 @@ use anyhow::{Context, Result};
 use reqwest::multipart::{Form, Part};
 use serde::Deserialize;
 use statichub_shared::{DeployResponse, ProjectConfig};
-use crate::auth::{
-    DeviceStartResponse, DeviceTokenResponse, LoginRequest, LoginResponse, StatusResponse,
-};
+use crate::auth::{DeviceStartResponse, DeviceTokenResponse};
 
 #[derive(Debug, Deserialize)]
 pub struct ProjectListItem {
@@ -152,30 +150,6 @@ impl Client {
         Ok(deploy_response)
     }
 
-    pub async fn initiate_login(&self, session_id: &str) -> Result<LoginResponse> {
-        let url = format!("{}/auth/login/google", self.base_url);
-
-        let response = self.client
-            .post(&url)
-            .json(&LoginRequest {
-                session_id: session_id.to_string(),
-            })
-            .send()
-            .await
-            .context("Failed to initiate login")?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-            anyhow::bail!("Login initiation failed with status {}: {}", status, body);
-        }
-
-        response
-            .json()
-            .await
-            .context("Failed to parse login response")
-    }
-
     pub async fn create_device_session(&self) -> Result<DeviceStartResponse> {
         let url = format!("{}/auth/device", self.base_url);
 
@@ -219,27 +193,6 @@ impl Client {
             .json()
             .await
             .context("Failed to parse device login poll response")
-    }
-
-    pub async fn poll_auth_status(&self, session_id: &str) -> Result<StatusResponse> {
-        let url = format!("{}/auth/status/{}", self.base_url, session_id);
-
-        let response = self.client
-            .get(&url)
-            .send()
-            .await
-            .context("Failed to poll auth status")?;
-
-        if !response.status().is_success() {
-            let status = response.status();
-            let body = response.text().await.unwrap_or_default();
-            anyhow::bail!("Auth status check failed with status {}: {}", status, body);
-        }
-
-        response
-            .json()
-            .await
-            .context("Failed to parse status response")
     }
 
     pub async fn list_projects(&self, token: &str) -> Result<Vec<ProjectListItem>> {
