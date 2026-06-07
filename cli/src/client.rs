@@ -2,7 +2,9 @@ use anyhow::{Context, Result};
 use reqwest::multipart::{Form, Part};
 use serde::Deserialize;
 use statichub_shared::{DeployResponse, ProjectConfig};
-use crate::auth::{LoginRequest, LoginResponse, StatusResponse};
+use crate::auth::{
+    DeviceStartResponse, DeviceTokenResponse, LoginRequest, LoginResponse, StatusResponse,
+};
 
 #[derive(Debug, Deserialize)]
 pub struct ProjectListItem {
@@ -172,6 +174,51 @@ impl Client {
             .json()
             .await
             .context("Failed to parse login response")
+    }
+
+    pub async fn create_device_session(&self) -> Result<DeviceStartResponse> {
+        let url = format!("{}/auth/device", self.base_url);
+
+        let response = self
+            .client
+            .post(&url)
+            .send()
+            .await
+            .context("Failed to start device login")?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            anyhow::bail!("Device login start failed with status {}: {}", status, body);
+        }
+
+        response
+            .json()
+            .await
+            .context("Failed to parse device login response")
+    }
+
+    pub async fn poll_device_token(&self, device_code: &str) -> Result<DeviceTokenResponse> {
+        let url = format!("{}/auth/device/token", self.base_url);
+
+        let response = self
+            .client
+            .post(&url)
+            .json(&serde_json::json!({ "device_code": device_code }))
+            .send()
+            .await
+            .context("Failed to poll device login")?;
+
+        if !response.status().is_success() {
+            let status = response.status();
+            let body = response.text().await.unwrap_or_default();
+            anyhow::bail!("Device login poll failed with status {}: {}", status, body);
+        }
+
+        response
+            .json()
+            .await
+            .context("Failed to parse device login poll response")
     }
 
     pub async fn poll_auth_status(&self, session_id: &str) -> Result<StatusResponse> {

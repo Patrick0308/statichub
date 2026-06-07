@@ -7,7 +7,10 @@ mod projects;
 mod serve;
 mod upload;
 
-pub use auth::{auth_status, callback_google, login_google, AuthState, PendingSession};
+pub use auth::{
+    auth_status, callback_google, device_page, device_start, device_token, device_verify,
+    login_google, AuthState, PendingSession,
+};
 pub use auth_disabled::{auth_disabled, protected_disabled};
 pub use apikeys::{create_api_key, list_api_keys, revoke_api_key};
 pub use deploys::{create_anonymous_deploy, DeployState};

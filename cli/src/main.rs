@@ -145,56 +145,76 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Login => {
             let server_url = resolve_server_url(cli.local);
+            let client = client::Client::new(server_url);
 
-            println!("🔐 Logging in to StaticHub...");
+            println!("Logging in to StaticHub...");
 
-            // Generate session ID
-            let session_id = auth::generate_session_id();
+            let login = client.create_device_session().await?;
 
-            // Initiate login
-            let client = client::Client::new(server_url.clone());
-            let login_response = client.initiate_login(&session_id).await?;
+            println!();
+            println!("Open this URL:");
+            println!("  {}", login.verification_uri);
+            println!();
+            println!("Enter this code:");
+            println!("  {}", login.user_code);
+            println!();
+            println!("Or open:");
+            println!("  {}", login.verification_uri_complete);
+            println!();
 
-            // Open browser
-            println!("📱 Opening browser for authentication...");
-            println!("   If the browser doesn't open, visit: {}", login_response.auth_url);
-
-            if let Err(e) = open::that(&login_response.auth_url) {
-                println!("   ⚠️  Could not open browser automatically: {}", e);
-                println!("   Please open the URL manually in your browser.");
+            if let Err(e) = open::that(&login.verification_uri_complete) {
+                println!("Could not open browser automatically: {}", e);
+                println!("Please open the URL manually in your browser.");
+                println!();
             }
 
-            // Poll for token
-            println!("⏳ Waiting for authentication...");
-            let mut attempts = 0;
-            let max_attempts = 60; // 5 minutes (60 * 5 seconds)
+            println!("Waiting for authentication...");
+            let started_at = std::time::Instant::now();
+            let expires_after = std::time::Duration::from_secs(login.expires_in.max(1) as u64);
+            let mut interval = std::time::Duration::from_secs(login.interval.max(1) as u64);
 
             let token = loop {
-                tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-                attempts += 1;
-
-                let status = client.poll_auth_status(&session_id).await?;
-
-                if let Some(token) = status.token {
-                    break token;
+                if started_at.elapsed() >= expires_after {
+                    anyhow::bail!("Authentication timed out. Please run 'statichub login' again.");
                 }
 
-                if attempts >= max_attempts {
-                    anyhow::bail!("Authentication timed out. Please try again.");
-                }
+                tokio::time::sleep(interval).await;
+                let status = client.poll_device_token(&login.device_code).await?;
 
-                // Show progress every 30 seconds (every 6 attempts)
-                if attempts % 6 == 0 {
-                    let elapsed_seconds = attempts * 5;
-                    println!("   Still waiting... ({}s elapsed)", elapsed_seconds);
+                match status.status.as_str() {
+                    "approved" => {
+                        let token = status
+                            .token
+                            .ok_or_else(|| anyhow::anyhow!("Login was approved but no token was returned"))?;
+                        break token;
+                    }
+                    "authorization_pending" => {
+                        if let Some(next_interval) = status.interval {
+                            interval = std::time::Duration::from_secs(next_interval.max(1) as u64);
+                        }
+                    }
+                    "slow_down" => {
+                        let next_interval = status
+                            .interval
+                            .unwrap_or_else(|| interval.as_secs() as i64 + 5);
+                        interval = std::time::Duration::from_secs(next_interval.max(1) as u64);
+                    }
+                    "expired_token" => {
+                        anyhow::bail!("Authentication code expired. Please run 'statichub login' again.");
+                    }
+                    "access_denied" => {
+                        anyhow::bail!("Authentication was denied.");
+                    }
+                    other => {
+                        anyhow::bail!("Unexpected login status from server: {}", other);
+                    }
                 }
             };
 
-            // Save credentials
             auth::save_credentials(&token)?;
 
-            println!("✅ Login successful!");
-            println!("   Credentials saved to ~/.statichub/credentials.json");
+            println!("Login successful!");
+            println!("Credentials saved to ~/.statichub/credentials.json");
         }
         Commands::Logout => {
             match auth::load_credentials()? {

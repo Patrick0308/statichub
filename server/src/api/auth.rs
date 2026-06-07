@@ -1,21 +1,28 @@
 use crate::{
     error::{AppError, Result},
-    models::User,
+    models::{DeviceLoginSession, DeviceLoginStatus, User},
 };
 use axum::{
-    extract::{Query, State},
+    extract::{Form, Query, State},
     http::StatusCode,
-    response::{IntoResponse, Json, Response},
+    response::{Html, IntoResponse, Json, Redirect, Response},
 };
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use jsonwebtoken::{encode, EncodingKey, Header};
 use oauth2::{
     basic::BasicClient, reqwest::async_http_client, AuthUrl, AuthorizationCode, ClientId,
     ClientSecret, CsrfToken, RedirectUrl, Scope, TokenResponse, TokenUrl,
 };
+use rand::{rngs::OsRng, RngCore};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use sqlx::SqlitePool;
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, env, sync::Arc};
 use tokio::sync::RwLock;
+use uuid::Uuid;
+
+pub const DEVICE_EXPIRES_IN_SECONDS: i64 = 600;
+pub const DEVICE_POLL_INTERVAL_SECONDS: i64 = 5;
 
 #[derive(Clone)]
 pub struct AuthState {
@@ -50,13 +57,48 @@ pub struct LoginResponse {
 
 #[derive(Debug, Deserialize)]
 pub struct CallbackQuery {
-    pub code: String,
+    pub code: Option<String>,
     pub state: String, // session_id
+    pub error: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct StatusResponse {
     pub token: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DeviceStartResponse {
+    pub device_code: String,
+    pub user_code: String,
+    pub verification_uri: String,
+    pub verification_uri_complete: String,
+    pub expires_in: i64,
+    pub interval: i64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DeviceVerifyRequest {
+    pub user_code: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DeviceTokenRequest {
+    pub device_code: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DeviceTokenResponse {
+    pub status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub token: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub interval: Option<i64>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DevicePageQuery {
+    pub code: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -125,6 +167,54 @@ impl AuthState {
     }
 }
 
+fn generate_device_code() -> String {
+    let mut bytes = [0_u8; 32];
+    OsRng.fill_bytes(&mut bytes);
+    format!("sdc_{}", URL_SAFE_NO_PAD.encode(bytes))
+}
+
+fn hash_device_code(device_code: &str) -> String {
+    let digest = Sha256::digest(device_code.as_bytes());
+    URL_SAFE_NO_PAD.encode(digest)
+}
+
+fn generate_user_code() -> String {
+    const CHARSET: &[u8] = b"ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    let mut rng = OsRng;
+    let mut code = String::with_capacity(9);
+
+    for i in 0..8 {
+        if i == 4 {
+            code.push('-');
+        }
+        let idx = (rng.next_u32() as usize) % CHARSET.len();
+        code.push(CHARSET[idx] as char);
+    }
+
+    code
+}
+
+fn normalize_user_code(input: &str) -> String {
+    let chars: String = input
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric())
+        .map(|c| c.to_ascii_uppercase())
+        .collect();
+
+    if chars.len() <= 4 {
+        chars
+    } else {
+        format!("{}-{}", &chars[..4], &chars[4..])
+    }
+}
+
+fn verification_base_url() -> String {
+    env::var("STATICHUB_PUBLIC_URL")
+        .unwrap_or_else(|_| "http://localhost:3000".to_string())
+        .trim_end_matches('/')
+        .to_string()
+}
+
 pub async fn login_google(
     State(state): State<Arc<AuthState>>,
     Json(payload): Json<LoginRequest>,
@@ -158,14 +248,437 @@ pub async fn login_google(
     }))
 }
 
+pub async fn device_start(
+    State(state): State<Arc<AuthState>>,
+) -> Result<Json<DeviceStartResponse>> {
+    DeviceLoginSession::expire_old(&state.pool).await?;
+
+    let device_code = generate_device_code();
+    let device_code_hash = hash_device_code(&device_code);
+    let expires_at =
+        (chrono::Utc::now() + chrono::Duration::seconds(DEVICE_EXPIRES_IN_SECONDS)).naive_utc();
+
+    let mut user_code = None;
+    for _ in 0..5 {
+        let candidate = generate_user_code();
+        match DeviceLoginSession::create(
+            &state.pool,
+            &device_code_hash,
+            &candidate,
+            expires_at,
+            DEVICE_POLL_INTERVAL_SECONDS,
+        )
+        .await
+        {
+            Ok(_) => {
+                user_code = Some(candidate);
+                break;
+            }
+            Err(sqlx::Error::Database(db_err)) if db_err.is_unique_violation() => continue,
+            Err(err) => return Err(err.into()),
+        }
+    }
+
+    let user_code = user_code.ok_or_else(|| {
+        AppError::Conflict("Could not allocate a unique device user code".to_string())
+    })?;
+    let verification_uri = format!("{}/auth/device", verification_base_url());
+    let verification_uri_complete = format!("{}?code={}", verification_uri, user_code);
+
+    Ok(Json(DeviceStartResponse {
+        device_code,
+        user_code,
+        verification_uri,
+        verification_uri_complete,
+        expires_in: DEVICE_EXPIRES_IN_SECONDS,
+        interval: DEVICE_POLL_INTERVAL_SECONDS,
+    }))
+}
+
+pub async fn device_page(Query(query): Query<DevicePageQuery>) -> Html<String> {
+    let code = query
+        .code
+        .as_deref()
+        .map(normalize_user_code)
+        .unwrap_or_default();
+    Html(format!(
+        r#"<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>statichub device login</title>
+  <link rel="stylesheet" href="/__home/home.css">
+  <style>
+    main {{
+      min-height: calc(100vh - 72px);
+      padding: 4.8rem 0 5.5rem;
+    }}
+
+    .auth-shell {{
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+      align-items: center;
+      gap: clamp(2rem, 5vw, 4.2rem);
+    }}
+
+    .auth-copy {{
+      max-width: 620px;
+    }}
+
+    .auth-kicker {{
+      margin: 0;
+      display: inline-block;
+      border: 1px solid #d8e2f4;
+      background: rgba(255, 255, 255, 0.84);
+      color: #384761;
+      border-radius: 999px;
+      padding: 0.42rem 0.82rem;
+      font-size: 0.84rem;
+      letter-spacing: 0.02em;
+    }}
+
+    .auth-copy h1 {{
+      margin: 1rem 0 0;
+      font-size: clamp(2.7rem, 7vw, 5.4rem);
+      line-height: 0.95;
+      font-weight: 620;
+      letter-spacing: -0.045em;
+    }}
+
+    .auth-copy h1 span {{
+      color: #206fd8;
+    }}
+
+    .auth-copy p {{
+      margin: 1rem 0 0;
+      max-width: 520px;
+      color: #53617a;
+      font-size: 1.04rem;
+    }}
+
+    .auth-steps {{
+      margin: 1.45rem 0 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 0.55rem;
+      max-width: 430px;
+    }}
+
+    .auth-steps li {{
+      display: flex;
+      align-items: center;
+      gap: 0.62rem;
+      color: #3a4f72;
+      font-size: 0.94rem;
+    }}
+
+    .auth-steps span {{
+      display: inline-flex;
+      width: 1.55rem;
+      height: 1.55rem;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: #eaf3ff;
+      color: #206fd8;
+      font-weight: 700;
+      font-size: 0.82rem;
+    }}
+
+    .auth-panel {{
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      padding: clamp(1.1rem, 3vw, 1.45rem);
+    }}
+
+    .auth-panel h2 {{
+      margin: 0;
+      font-size: 1.12rem;
+    }}
+
+    .auth-panel p {{
+      margin: 0.35rem 0 1rem;
+      color: var(--muted);
+      font-size: 0.94rem;
+    }}
+
+    .device-form {{
+      display: grid;
+      gap: 0.85rem;
+    }}
+
+    .device-form label {{
+      color: #384761;
+      font-weight: 620;
+      font-size: 0.92rem;
+    }}
+
+    .device-form input {{
+      width: 100%;
+      border: 1px solid #c9d8ef;
+      border-radius: var(--radius-md);
+      background: #f8fbff;
+      color: var(--ink);
+      font-family: "JetBrains Mono", "SFMono-Regular", Menlo, monospace;
+      font-size: clamp(1.45rem, 7vw, 2.15rem);
+      line-height: 1;
+      letter-spacing: 0.08em;
+      text-align: center;
+      padding: 0.85rem 0.75rem;
+      text-transform: uppercase;
+      outline: none;
+    }}
+
+    .device-form input:focus {{
+      border-color: #287be5;
+      box-shadow: 0 0 0 4px rgba(40, 123, 229, 0.12);
+      background: #ffffff;
+    }}
+
+    .device-form .btn {{
+      cursor: pointer;
+      width: 100%;
+    }}
+
+    .auth-footnote {{
+      margin: 0.9rem 0 0;
+      color: #6b7486;
+      font-size: 0.84rem;
+    }}
+
+    @media (max-width: 760px) {{
+      .site-header {{
+        position: static;
+      }}
+
+      .header-inner {{
+        justify-content: center;
+      }}
+
+      main {{
+        padding: 3rem 0 4rem;
+      }}
+
+      .auth-shell {{
+        grid-template-columns: 1fr;
+      }}
+
+      .auth-copy {{
+        text-align: center;
+        margin: 0 auto;
+      }}
+
+      .auth-copy p,
+      .auth-steps {{
+        margin-left: auto;
+        margin-right: auto;
+      }}
+    }}
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a class="brand" href="/">statichub</a>
+      <div class="header-actions">
+        <a class="btn btn-ghost" href="/">Home</a>
+        <a class="btn btn-ghost" href="https://github.com/Patrick0308/statichub" target="_blank" rel="noopener noreferrer">GitHub</a>
+      </div>
+    </div>
+  </header>
+  <main>
+    <section class="auth-shell wrap">
+      <div class="auth-copy">
+        <p class="auth-kicker">Terminal login</p>
+        <h1>Connect your<br><span>statichub CLI.</span></h1>
+        <p>Enter the code from your terminal to continue with Google OAuth and return a signed-in CLI session.</p>
+        <ol class="auth-steps" aria-label="Login steps">
+          <li><span>1</span>Run <strong>statichub login</strong></li>
+          <li><span>2</span>Enter the device code</li>
+          <li><span>3</span>Return to your terminal</li>
+        </ol>
+      </div>
+
+      <section class="auth-panel" aria-labelledby="device-login-title">
+        <h2 id="device-login-title">Device code</h2>
+        <p>Codes expire quickly and can only be used once.</p>
+        <form class="device-form" method="post" action="/auth/device/verify">
+          <label for="user_code">Code from terminal</label>
+          <input id="user_code" name="user_code" value="{code}" autocomplete="one-time-code" inputmode="text" maxlength="9" placeholder="ABCD-EFGH" autofocus>
+          <button class="btn btn-primary" type="submit">Continue</button>
+        </form>
+        <p class="auth-footnote">You will be redirected to Google to finish authentication.</p>
+      </section>
+    </section>
+  </main>
+</body>
+</html>"#
+    ))
+}
+
+pub async fn device_verify(
+    State(state): State<Arc<AuthState>>,
+    Form(payload): Form<DeviceVerifyRequest>,
+) -> Result<Redirect> {
+    DeviceLoginSession::expire_old(&state.pool).await?;
+
+    let user_code = normalize_user_code(&payload.user_code);
+    if user_code.len() != 9 {
+        return Err(AppError::BadRequest("Invalid device code".to_string()));
+    }
+
+    let session = DeviceLoginSession::find_by_user_code(&state.pool, &user_code)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Device login session not found".to_string()))?;
+
+    if session.is_expired() || session.status() == DeviceLoginStatus::Expired {
+        return Err(AppError::BadRequest(
+            "Device login session expired".to_string(),
+        ));
+    }
+
+    if session.status() != DeviceLoginStatus::Pending {
+        return Err(AppError::Conflict(
+            "Device login session is not pending".to_string(),
+        ));
+    }
+
+    let oauth_state = Uuid::new_v4().to_string();
+    match DeviceLoginSession::attach_oauth_state(&state.pool, session.id, &oauth_state).await {
+        Ok(_) => {}
+        Err(sqlx::Error::RowNotFound) => {
+            return Err(AppError::Conflict(
+                "Device login session is no longer pending".to_string(),
+            ));
+        }
+        Err(err) => return Err(err.into()),
+    }
+
+    let (auth_url, _csrf_token) = state
+        .oauth_client
+        .authorize_url(|| CsrfToken::new(oauth_state))
+        .add_scope(Scope::new("email".to_string()))
+        .add_scope(Scope::new("profile".to_string()))
+        .url();
+
+    Ok(Redirect::to(auth_url.as_ref()))
+}
+
+pub async fn device_token(
+    State(state): State<Arc<AuthState>>,
+    Json(payload): Json<DeviceTokenRequest>,
+) -> Result<Json<DeviceTokenResponse>> {
+    DeviceLoginSession::expire_old(&state.pool).await?;
+
+    let device_code_hash = hash_device_code(&payload.device_code);
+    let session = DeviceLoginSession::find_by_device_code_hash(&state.pool, &device_code_hash)
+        .await?
+        .ok_or(AppError::Unauthorized)?;
+
+    match session.status() {
+        DeviceLoginStatus::Approved => {
+            let token = DeviceLoginSession::consume_token(&state.pool, session.id).await?;
+            if let Some(token) = token {
+                Ok(Json(DeviceTokenResponse {
+                    status: "approved".to_string(),
+                    token: Some(token),
+                    interval: None,
+                }))
+            } else {
+                Ok(Json(DeviceTokenResponse {
+                    status: "expired_token".to_string(),
+                    token: None,
+                    interval: None,
+                }))
+            }
+        }
+        DeviceLoginStatus::Denied => Ok(Json(DeviceTokenResponse {
+            status: "access_denied".to_string(),
+            token: None,
+            interval: None,
+        })),
+        DeviceLoginStatus::Consumed | DeviceLoginStatus::Expired => Ok(Json(DeviceTokenResponse {
+            status: "expired_token".to_string(),
+            token: None,
+            interval: None,
+        })),
+        DeviceLoginStatus::Pending | DeviceLoginStatus::Verified => {
+            if session.is_expired() {
+                return Ok(Json(DeviceTokenResponse {
+                    status: "expired_token".to_string(),
+                    token: None,
+                    interval: None,
+                }));
+            }
+
+            if let Some(last_polled_at) = session.last_polled_at {
+                let next_allowed_at =
+                    last_polled_at + chrono::Duration::seconds(session.poll_interval_seconds);
+                if chrono::Utc::now().naive_utc() < next_allowed_at {
+                    DeviceLoginSession::mark_polled(&state.pool, session.id).await?;
+                    return Ok(Json(DeviceTokenResponse {
+                        status: "slow_down".to_string(),
+                        token: None,
+                        interval: Some(session.poll_interval_seconds + 5),
+                    }));
+                }
+            }
+
+            DeviceLoginSession::mark_polled(&state.pool, session.id).await?;
+            Ok(Json(DeviceTokenResponse {
+                status: "authorization_pending".to_string(),
+                token: None,
+                interval: Some(session.poll_interval_seconds),
+            }))
+        }
+    }
+}
+
 pub async fn callback_google(
     State(state): State<Arc<AuthState>>,
     Query(query): Query<CallbackQuery>,
 ) -> Result<Response> {
+    if let Some(error) = query.error.as_deref() {
+        if error == "access_denied" {
+            if let Some(device_session) =
+                DeviceLoginSession::find_by_oauth_state(&state.pool, &query.state).await?
+            {
+                match DeviceLoginSession::deny(&state.pool, device_session.id).await {
+                    Ok(_) => {
+                        return Ok((
+                            StatusCode::OK,
+                            "Authentication was denied. You can close this window and return to your terminal.",
+                        )
+                            .into_response());
+                    }
+                    Err(sqlx::Error::RowNotFound) => {
+                        return Err(AppError::Conflict(
+                            "Device login session is no longer awaiting approval".to_string(),
+                        ));
+                    }
+                    Err(err) => return Err(err.into()),
+                }
+            }
+        }
+
+        return Err(AppError::BadRequest(format!(
+            "OAuth authentication failed: {}",
+            error
+        )));
+    }
+
+    let code = query
+        .code
+        .ok_or_else(|| AppError::BadRequest("Missing OAuth authorization code".to_string()))?;
+
     // Exchange code for token
     let token_result = state
         .oauth_client
-        .exchange_code(AuthorizationCode::new(query.code))
+        .exchange_code(AuthorizationCode::new(code))
         .request_async(async_http_client)
         .await
         .map_err(|e| AppError::Internal(format!("OAuth token exchange failed: {}", e)))?;
@@ -201,6 +714,38 @@ pub async fn callback_google(
 
     // Generate JWT
     let jwt = state.generate_jwt(user.id, &user.email)?;
+
+    if let Some(device_session) =
+        DeviceLoginSession::find_by_oauth_state(&state.pool, &query.state).await?
+    {
+        if device_session.is_expired() || device_session.status() == DeviceLoginStatus::Expired {
+            return Err(AppError::BadRequest(
+                "Session expired. Please restart authentication.".to_string(),
+            ));
+        }
+
+        if device_session.status() != DeviceLoginStatus::Verified {
+            return Err(AppError::Conflict(
+                "Device login session is no longer awaiting approval".to_string(),
+            ));
+        }
+
+        match DeviceLoginSession::approve(&state.pool, device_session.id, &jwt).await {
+            Ok(_) => {}
+            Err(sqlx::Error::RowNotFound) => {
+                return Err(AppError::BadRequest(
+                    "Session expired. Please restart authentication.".to_string(),
+                ));
+            }
+            Err(err) => return Err(err.into()),
+        }
+
+        return Ok((
+            StatusCode::OK,
+            "Authentication successful! You can close this window and return to your terminal.",
+        )
+            .into_response());
+    }
 
     // Store JWT in session
     let mut sessions = state.sessions.write().await;

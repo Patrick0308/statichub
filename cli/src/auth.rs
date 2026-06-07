@@ -23,6 +23,23 @@ pub struct StatusResponse {
     pub token: Option<String>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct DeviceStartResponse {
+    pub device_code: String,
+    pub user_code: String,
+    pub verification_uri: String,
+    pub verification_uri_complete: String,
+    pub expires_in: i64,
+    pub interval: i64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DeviceTokenResponse {
+    pub status: String,
+    pub token: Option<String>,
+    pub interval: Option<i64>,
+}
+
 fn credentials_path() -> Result<PathBuf> {
     let home = dirs::home_dir()
         .context("Could not find home directory")?;
