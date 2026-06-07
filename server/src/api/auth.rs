@@ -381,14 +381,6 @@ pub async fn device_token(
         .await?
         .ok_or(AppError::Unauthorized)?;
 
-    if session.is_expired() {
-        return Ok(Json(DeviceTokenResponse {
-            status: "expired_token".to_string(),
-            token: None,
-            interval: None,
-        }));
-    }
-
     match session.status() {
         DeviceLoginStatus::Approved => {
             let token = DeviceLoginSession::consume_token(&state.pool, session.id).await?;
@@ -417,6 +409,14 @@ pub async fn device_token(
             interval: None,
         })),
         DeviceLoginStatus::Pending | DeviceLoginStatus::Verified => {
+            if session.is_expired() {
+                return Ok(Json(DeviceTokenResponse {
+                    status: "expired_token".to_string(),
+                    token: None,
+                    interval: None,
+                }));
+            }
+
             if let Some(last_polled_at) = session.last_polled_at {
                 let next_allowed_at =
                     last_polled_at + chrono::Duration::seconds(session.poll_interval_seconds);
