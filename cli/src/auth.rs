@@ -8,27 +8,10 @@ pub struct Credentials {
     pub expires_at: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct LoginRequest {
-    pub session_id: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct LoginResponse {
-    pub auth_url: String,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct StatusResponse {
-    pub token: Option<String>,
-}
-
 #[derive(Debug, Deserialize)]
 pub struct DeviceStartResponse {
     pub device_code: String,
     pub user_code: String,
-    pub verification_uri: String,
-    pub verification_uri_complete: String,
     pub expires_in: i64,
     pub interval: i64,
 }
@@ -95,10 +78,6 @@ pub fn clear_credentials() -> Result<()> {
     Ok(())
 }
 
-pub fn generate_session_id() -> String {
-    uuid::Uuid::new_v4().to_string()
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -150,11 +129,4 @@ mod tests {
         assert!(loaded.is_none());
     }
 
-    #[test]
-    fn test_session_id_format() {
-        let session_id = generate_session_id();
-        // Should be a valid UUID v4 with 36 characters
-        assert_eq!(session_id.len(), 36);
-        assert!(uuid::Uuid::parse_str(&session_id).is_ok());
-    }
 }
