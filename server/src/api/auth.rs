@@ -389,19 +389,6 @@ pub async fn device_token(
         }));
     }
 
-    if let Some(last_polled_at) = session.last_polled_at {
-        let next_allowed_at =
-            last_polled_at + chrono::Duration::seconds(session.poll_interval_seconds);
-        if chrono::Utc::now().naive_utc() < next_allowed_at {
-            DeviceLoginSession::mark_polled(&state.pool, session.id).await?;
-            return Ok(Json(DeviceTokenResponse {
-                status: "slow_down".to_string(),
-                token: None,
-                interval: Some(session.poll_interval_seconds + 5),
-            }));
-        }
-    }
-
     match session.status() {
         DeviceLoginStatus::Approved => {
             let token = DeviceLoginSession::consume_token(&state.pool, session.id).await?;
@@ -430,6 +417,19 @@ pub async fn device_token(
             interval: None,
         })),
         DeviceLoginStatus::Pending | DeviceLoginStatus::Verified => {
+            if let Some(last_polled_at) = session.last_polled_at {
+                let next_allowed_at =
+                    last_polled_at + chrono::Duration::seconds(session.poll_interval_seconds);
+                if chrono::Utc::now().naive_utc() < next_allowed_at {
+                    DeviceLoginSession::mark_polled(&state.pool, session.id).await?;
+                    return Ok(Json(DeviceTokenResponse {
+                        status: "slow_down".to_string(),
+                        token: None,
+                        interval: Some(session.poll_interval_seconds + 5),
+                    }));
+                }
+            }
+
             DeviceLoginSession::mark_polled(&state.pool, session.id).await?;
             Ok(Json(DeviceTokenResponse {
                 status: "authorization_pending".to_string(),
