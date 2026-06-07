@@ -307,16 +307,213 @@ pub async fn device_page(Query(query): Query<DevicePageQuery>) -> Html<String> {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>StaticHub Device Login</title>
+  <title>statichub device login</title>
+  <link rel="stylesheet" href="/__home/home.css">
+  <style>
+    main {{
+      min-height: calc(100vh - 72px);
+      padding: 4.8rem 0 5.5rem;
+    }}
+
+    .auth-shell {{
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+      align-items: center;
+      gap: clamp(2rem, 5vw, 4.2rem);
+    }}
+
+    .auth-copy {{
+      max-width: 620px;
+    }}
+
+    .auth-kicker {{
+      margin: 0;
+      display: inline-block;
+      border: 1px solid #d8e2f4;
+      background: rgba(255, 255, 255, 0.84);
+      color: #384761;
+      border-radius: 999px;
+      padding: 0.42rem 0.82rem;
+      font-size: 0.84rem;
+      letter-spacing: 0.02em;
+    }}
+
+    .auth-copy h1 {{
+      margin: 1rem 0 0;
+      font-size: clamp(2.7rem, 7vw, 5.4rem);
+      line-height: 0.95;
+      font-weight: 620;
+      letter-spacing: -0.045em;
+    }}
+
+    .auth-copy h1 span {{
+      color: #206fd8;
+    }}
+
+    .auth-copy p {{
+      margin: 1rem 0 0;
+      max-width: 520px;
+      color: #53617a;
+      font-size: 1.04rem;
+    }}
+
+    .auth-steps {{
+      margin: 1.45rem 0 0;
+      padding: 0;
+      list-style: none;
+      display: grid;
+      gap: 0.55rem;
+      max-width: 430px;
+    }}
+
+    .auth-steps li {{
+      display: flex;
+      align-items: center;
+      gap: 0.62rem;
+      color: #3a4f72;
+      font-size: 0.94rem;
+    }}
+
+    .auth-steps span {{
+      display: inline-flex;
+      width: 1.55rem;
+      height: 1.55rem;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: #eaf3ff;
+      color: #206fd8;
+      font-weight: 700;
+      font-size: 0.82rem;
+    }}
+
+    .auth-panel {{
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      padding: clamp(1.1rem, 3vw, 1.45rem);
+    }}
+
+    .auth-panel h2 {{
+      margin: 0;
+      font-size: 1.12rem;
+    }}
+
+    .auth-panel p {{
+      margin: 0.35rem 0 1rem;
+      color: var(--muted);
+      font-size: 0.94rem;
+    }}
+
+    .device-form {{
+      display: grid;
+      gap: 0.85rem;
+    }}
+
+    .device-form label {{
+      color: #384761;
+      font-weight: 620;
+      font-size: 0.92rem;
+    }}
+
+    .device-form input {{
+      width: 100%;
+      border: 1px solid #c9d8ef;
+      border-radius: var(--radius-md);
+      background: #f8fbff;
+      color: var(--ink);
+      font-family: "JetBrains Mono", "SFMono-Regular", Menlo, monospace;
+      font-size: clamp(1.45rem, 7vw, 2.15rem);
+      line-height: 1;
+      letter-spacing: 0.08em;
+      text-align: center;
+      padding: 0.85rem 0.75rem;
+      text-transform: uppercase;
+      outline: none;
+    }}
+
+    .device-form input:focus {{
+      border-color: #287be5;
+      box-shadow: 0 0 0 4px rgba(40, 123, 229, 0.12);
+      background: #ffffff;
+    }}
+
+    .device-form .btn {{
+      cursor: pointer;
+      width: 100%;
+    }}
+
+    .auth-footnote {{
+      margin: 0.9rem 0 0;
+      color: #6b7486;
+      font-size: 0.84rem;
+    }}
+
+    @media (max-width: 760px) {{
+      .site-header {{
+        position: static;
+      }}
+
+      .header-inner {{
+        justify-content: center;
+      }}
+
+      main {{
+        padding: 3rem 0 4rem;
+      }}
+
+      .auth-shell {{
+        grid-template-columns: 1fr;
+      }}
+
+      .auth-copy {{
+        text-align: center;
+        margin: 0 auto;
+      }}
+
+      .auth-copy p,
+      .auth-steps {{
+        margin-left: auto;
+        margin-right: auto;
+      }}
+    }}
+  </style>
 </head>
 <body>
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a class="brand" href="/">statichub</a>
+      <div class="header-actions">
+        <a class="btn btn-ghost" href="/">Home</a>
+        <a class="btn btn-ghost" href="https://github.com/Patrick0308/statichub" target="_blank" rel="noopener noreferrer">GitHub</a>
+      </div>
+    </div>
+  </header>
   <main>
-    <h1>StaticHub Device Login</h1>
-    <form method="post" action="/auth/device/verify">
-      <label for="user_code">Code</label>
-      <input id="user_code" name="user_code" value="{code}" autocomplete="one-time-code" autofocus>
-      <button type="submit">Continue</button>
-    </form>
+    <section class="auth-shell wrap">
+      <div class="auth-copy">
+        <p class="auth-kicker">Terminal login</p>
+        <h1>Connect your<br><span>statichub CLI.</span></h1>
+        <p>Enter the code from your terminal to continue with Google OAuth and return a signed-in CLI session.</p>
+        <ol class="auth-steps" aria-label="Login steps">
+          <li><span>1</span>Run <strong>statichub login</strong></li>
+          <li><span>2</span>Enter the device code</li>
+          <li><span>3</span>Return to your terminal</li>
+        </ol>
+      </div>
+
+      <section class="auth-panel" aria-labelledby="device-login-title">
+        <h2 id="device-login-title">Device code</h2>
+        <p>Codes expire quickly and can only be used once.</p>
+        <form class="device-form" method="post" action="/auth/device/verify">
+          <label for="user_code">Code from terminal</label>
+          <input id="user_code" name="user_code" value="{code}" autocomplete="one-time-code" inputmode="text" maxlength="9" placeholder="ABCD-EFGH" autofocus>
+          <button class="btn btn-primary" type="submit">Continue</button>
+        </form>
+        <p class="auth-footnote">You will be redirected to Google to finish authentication.</p>
+      </section>
+    </section>
   </main>
 </body>
 </html>"#

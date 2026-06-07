@@ -400,6 +400,51 @@ async fn device_start_returns_codes_and_urls(pool: SqlitePool) {
 }
 
 #[sqlx::test]
+async fn device_page_uses_homepage_styling(pool: SqlitePool) {
+    let deploy_state = Arc::new(DeployState {
+        pool: pool.clone(),
+        storage: Arc::new(FilesystemStorage::new("./test_storage".into())),
+    });
+
+    let auth_state = Arc::new(
+        AuthState::new(
+            pool.clone(),
+            "test_client_id".to_string(),
+            "test_client_secret".to_string(),
+            "http://localhost:3000/auth/callback/google".to_string(),
+            "test_jwt_secret".to_string(),
+        )
+        .unwrap(),
+    );
+
+    let app = create_router(deploy_state, statichub_server::config::AuthMode::Enabled, Some(auth_state));
+
+    let response = app
+        .oneshot(
+            Request::builder()
+                .uri("/auth/device?code=abcd-efgh")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+    assert_eq!(response.status(), StatusCode::OK);
+
+    let body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .unwrap();
+    let html = String::from_utf8(body.to_vec()).unwrap();
+
+    assert!(html.contains(r#"/__home/home.css"#));
+    assert!(html.contains(r#"<header class="site-header">"#));
+    assert!(html.contains(r#"<a class="brand" href="/">statichub</a>"#));
+    assert!(html.contains(r#"Connect your<br><span>statichub CLI.</span>"#));
+    assert!(html.contains(r#"value="ABCD-EFGH""#));
+    assert!(html.contains(r#"class="btn btn-primary""#));
+}
+
+#[sqlx::test]
 async fn device_token_pending_then_slow_down(pool: SqlitePool) {
     let deploy_state = Arc::new(DeployState {
         pool: pool.clone(),
