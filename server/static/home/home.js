@@ -146,9 +146,20 @@ function setupQuickstartStepTracking() {
   });
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function initHomePage() {
+  if (window.__statichubHomeInitialized) {
+    return;
+  }
+  window.__statichubHomeInitialized = true;
+
   setupTabs();
   setupCopyButtons();
   setupAnalyticsCtas();
   setupQuickstartStepTracking();
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initHomePage);
+} else {
+  initHomePage();
+}

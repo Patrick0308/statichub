@@ -7,10 +7,20 @@
     <link rel="stylesheet" id="home-style" href="/__home/home.css" />
     <script>
       (function () {
+        var style = document.getElementById("home-style");
+        if (!style) return;
+
         if (window.location.protocol === "file:") {
-          var style = document.getElementById("home-style");
-          if (style) style.href = "home.css";
+          style.href = "home.css";
+          return;
         }
+
+        style.addEventListener("error", function () {
+          if (!style.dataset.fallbackApplied) {
+            style.dataset.fallbackApplied = "true";
+            style.href = "home.css";
+          }
+        });
       })();
     </script>
   </head>
@@ -151,10 +161,22 @@
 
     <script>
       (function () {
-        var script = document.createElement("script");
-        script.defer = true;
-        script.src = window.location.protocol === "file:" ? "home.js" : "/__home/home.js";
-        document.body.appendChild(script);
+        function loadScript(src, onError) {
+          var script = document.createElement("script");
+          script.defer = true;
+          script.src = src;
+          if (onError) script.addEventListener("error", onError, { once: true });
+          document.body.appendChild(script);
+        }
+
+        if (window.location.protocol === "file:") {
+          loadScript("home.js");
+          return;
+        }
+
+        loadScript("/__home/home.js", function () {
+          loadScript("home.js");
+        });
       })();
     </script>
   </body>
